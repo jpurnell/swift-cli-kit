@@ -1,0 +1,142 @@
+[
+  {
+    "contentHash" : "363428beb350bb25a3ed17e8ddd51710359522204723a5a390e88ca10fc20d22",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/QualityGateDashboard\/PortfolioDashboard.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "b3d20b0fd6c22b1d477f81fdc6a876e59953ff7b54eddf0ebf2e35282fc14ea6",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/L10n\/TerminalFormatter.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "58a323408e190e01534739680f7bd15fce60d5b1c58006622fb986fd521c5545",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/L10n\/TerminalFormatter.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "1e8a6fc53a067d6fe9674ee7c996e3a9c7cefeb8d660650f0103f5a0474b95f2",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/L10n\/TerminalFormatter.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "b049028527ec60045b6fc1730657433d4da788b41204c11d64086eed575ce7a1",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Util\/Formatting.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "70dc9b9718b00a594762caf6def49f93f92ed4588515b3daa88aac54e6ef4696",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Util\/Formatting.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "8539f00c2c62a853b0bb76409305076ebe5aa51c7b2a49bc38abb95136379883",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Util\/Formatting.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "cb1fbcc1cec7fb9f6e26107a4bde4ad3ce6116b9394f292ab0209f9eb309a7e1",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Util\/Formatting.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "abc847587efb2be6089eb7c8308e30338abb9d58edb82aed93823cd15beb1960",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Animation\/Transition.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "14ab21a912a98cdc35eb5fcc40fdce09a3897c7541518b6eae648d5f83610060",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Animation\/AnimatedValue.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "e5272df769b10382cdf0a0145793be5e1c8c4e6c871f418c6f8545f686a1792e",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/InlineGauge.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "9544d5247e583419857be445ca5a3a67c139b735765e62a8011598d22673bac8",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/InlineGauge.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "0625657c127fce7eec6ea3249242c5310b7d3db16bf69fa0e47f3d336cc8ddcd",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/SparklineGeometry.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "12b79d44ac03e5651d7f7a8420b46542be1062dd99f59a52e0b809f230a2d432",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/SparklineGeometry.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "3406b608781722d9569f7fc8a3b69cea36a9a36f6c12eb4718ddc4fd2780450d",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/InlineSparkline.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.clamp-absorbs-nan"
+  },
+  {
+    "contentHash" : "a6eaff15c198e9e9f43635c5febf01d4d7fa73bd11e83696eea79441fcc6f833",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/InlineSparkline.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "b8d2e84c6deb4f730cdb3f9ffcbf789d1582c82bccf6083f242c949805035601",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/BarChartRenderer.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "b295fa6f622405151891fd7a0b80ca626fc8f7822960eb78e5f8b8ceed9cf21f",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/BarChartRenderer.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "460fbea179d405cac0abe733ec2a92264982239f65bee608fb22854000079424",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftCLIKit\/Widgets\/GaugeGeometry.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  },
+  {
+    "contentHash" : "c55691b8fc8eab4c7b4161cdbadec3e0d7db7265277d37f9e980c18954568a77",
+    "expiresAt" : "2027-03-28T18:41:22Z",
+    "filePath" : "\/Users\/jpurnell\/Dropbox\/Computer\/Development\/Swift\/Tools\/SwiftCLIKit\/Sources\/SwiftGUIKitSwiftUI\/SwiftUIRenderer.swift",
+    "recordedAt" : "2026-09-29T18:41:22Z",
+    "ruleId" : "fallback.int-conversion-unguarded"
+  }
+]

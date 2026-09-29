@@ -1,0 +1,18 @@
+.DS_Store
+/.build
+**/.build/
+/build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
+
+# Claude Code local settings (personal preferences, not shared)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# development-guidelines has its own git repo
+development-guidelines/
+/.claude/skills/
+/development-guidelines.pre-v2/
