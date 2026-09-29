@@ -1,0 +1,25 @@
+excludePatterns:
+  - "swiftclikit-examples"
+
+docTarget: SwiftCLIKit
+
+overrides:
+  swift-version-minimum: info
+  logging.catch-without-logging: info
+  stochastic-no-seed: info
+
+consistency:
+  corpusPath: /Users/jpurnell/Dropbox/Computer/Development/Swift/Tools/org-judgement-corpus
+  projectID: SwiftCLIKit
+  consistencyThreshold: 0.7
+  defaultRiskTier: 2
+
+# v2 layout: the master plan is project-owned, not framework content.
+status:
+  guidelinesPath: "."
+  masterPlanPath: project/master_plan.md
+
+# Refuse to trust a gate binary older than this. A stale binary silently runs
+# old rules; without this pin nothing says so. Ratchet on each deploy that the
+# repo depends on. Warns on every run; fails only under --strict.
+minimumGateVersion: "2026-08-26"
