@@ -31,9 +31,9 @@ public final class SessionRecorder<Message: Codable & Sendable>: Sendable {
         let safePath = URL(fileURLWithPath: outputPath).standardizedFileURL.path
         self.outputPath = safePath
         let manager = FileManager.default
-        // SECURITY: path sanitized via URL.standardizedFileURL
+        // SECURITY: debug tooling; the developer chooses where the recording goes, and writing it is the point
         if !manager.fileExists(atPath: safePath) {
-            // SECURITY: path sanitized via URL.standardizedFileURL
+            // SECURITY: debug tooling; the developer chooses where the recording goes, and writing it is the point
             manager.createFile(atPath: safePath, contents: nil)
         } else {
             if let handle = FileHandle(forWritingAtPath: safePath) {

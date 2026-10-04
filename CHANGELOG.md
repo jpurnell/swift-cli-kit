@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-03
+
+A major version, because `SSHServer()` and `SSHConfiguration()` no longer compile. That is
+the point: both used to produce an SSH server on every interface that authenticated nobody,
+and neither said so. Only `SwiftCLIKitSSH` breaks; `SwiftCLIKit`, `SwiftGUIKit` and the
+dashboard targets are source-compatible with 1.4.0.
+
+### Security — breaking
+
+- **`SSHServer` bound every interface by default.** `host` defaulted to `"0.0.0.0"`. It now
+  defaults to `SSHServer.loopbackHost` (`"127.0.0.1"`); a wider bind is an argument somebody
+  wrote. The startup log reports the address the channel is bound to rather than the one
+  requested.
+- **`SSHConfiguration.authMode` defaulted to `.none`.** It is now a required argument of
+  `SSHConfiguration.init(maxConnections:idleTimeout:authMode:)`, and `SSHServer.init`'s
+  `configuration` is required with it. `.none` still exists; it has to be written.
+- **`authMode` was never enforced.** `SSHServer.start` installed a delegate that accepted
+  every request and did not read `configuration.authMode`, so a server configured with
+  `.password { … }` or `.publicKey` admitted every client, validator uncalled. The mode is
+  now what decides: `.password` admits a password its validator accepts and nothing else,
+  `.publicKey` admits a public-key request and nothing else, `.none` admits everything.
+  Only the methods a mode can admit are offered to the client. A server in `.none` logs a
+  warning when it starts.
+
+### Added
+
+- `SSHServer.loopbackHost`.
+- `SSHConfiguration.AuthMode.authenticatesClients` — `false` only for `.none`.
+
+### Migration from 1.x
+
+| 1.x | 2.0 |
+|---|---|
+| `SSHConfiguration()` | `SSHConfiguration(authMode: .none)` — the same behaviour, now stated. Prefer `.password { … }` or `.publicKey`. |
+| `SSHConfiguration(maxConnections: 32)` | `SSHConfiguration(maxConnections: 32, authMode: …)` |
+| `SSHServer()` / `SSHServer(port: 2222)` | `SSHServer(port: 2222, configuration: SSHConfiguration(authMode: …))` |
+| relied on the server being reachable from other machines | add `host: "0.0.0.0"` (or a specific interface address) |
+
+Two behaviour changes need no source edit and are easy to miss:
+
+- A call that already passed `authMode: .password { … }` or `.publicKey` compiled against 1.x
+  and was **not** being authenticated. Under 2.0 it is. Clients that connected with no
+  credential, or the wrong one, are now refused.
+- A call that passed no `host` now listens on loopback only.
+
+Still not enforced, and unchanged by this release: `maxConnections`, `idleTimeout`, and
+`HostKeySource.filePath` (an ephemeral key is generated whichever source is named).
+
+### Changed
+
+- The session-replay test sandbox checks containment by path components; its `deinit` would
+  otherwise have removed any directory whose path began with the sandbox root's.
+
+
+### Changed
+
+- Four `// SECURITY:` acknowledgements now say what was decided, ahead of the quality gate requiring a
+  reason of at least eight words on every one.
+
+### Fixed
+- **`TerminalFormatter.formatDate` named the wrong year when it fell back to year-only.** The
+  medium and short styles were formatted in the requested locale, but the last-resort year came
+  from `Calendar.current` — the calendar of whatever machine ran it. Asking for
+  `ja_JP@calendar=japanese` at width 2 returned `19` (a truncated Gregorian `1970`) instead of
+  `45` (Shōwa 45). The fallback now uses the requested locale's calendar and the formatter's
+  time zone, so all three widths describe the same date.
+
+### Changed
+- `SessionReplayTests` and `LocalizationTests` moved from XCTest to Swift Testing, the last two
+  files that had not. `SessionRecorderTests` keeps its per-test sandbox directory through
+  `init`/`deinit`, and creating it now fails the test instead of being swallowed by `try?`.
+  Snapshot counts are `#require`d before the snapshots are indexed.
+
 ## [1.4.0] - 2026-09-17
 
 Cut, rather than moving a tag again. `v1.3.1` has pointed at three different revisions —

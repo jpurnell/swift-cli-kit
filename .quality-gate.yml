@@ -9,7 +9,7 @@ overrides:
   stochastic-no-seed: info
 
 consistency:
-  corpusPath: /Users/jpurnell/Dropbox/Computer/Development/Swift/Tools/org-judgement-corpus
+  corpusPath: ../org-judgement-corpus
   projectID: SwiftCLIKit
   consistencyThreshold: 0.7
   defaultRiskTier: 2

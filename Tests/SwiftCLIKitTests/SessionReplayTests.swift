@@ -2,7 +2,8 @@
 // SwiftCLIKit
 // Created by Justin Purnell on 2026-04-10.
 
-import XCTest
+import Foundation
+import Testing
 @testable import SwiftCLIKit
 
 // MARK: - Test Message Type
@@ -37,34 +38,32 @@ private struct SandboxEscape: Error, CustomStringConvertible {
     var description: String { "path escapes the test sandbox: \(path)" }
 }
 
-final class SessionRecorderTests: XCTestCase {
+@Suite final class SessionRecorderTests {
 
     /// Every file these tests create lives under this root; nothing else is touched.
     private static let sandboxRoot = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).standardized
 
-    private var tempDir = SessionRecorderTests.sandboxRoot
+    private let tempDir: URL
 
-    override func setUp() {
-        super.setUp()
+    init() throws {
         tempDir = Self.sandboxRoot
             .appendingPathComponent("SwiftCLIKitTests_\(UUID().uuidString)", isDirectory: true)
             .standardized
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     }
 
-    override func tearDown() {
+    deinit {
         // Only ever remove a directory strictly inside the sandbox root.
         let dir = tempDir.standardized
-        if dir != Self.sandboxRoot, dir.path.hasPrefix(Self.sandboxRoot.path) {
+        if dir != Self.sandboxRoot, dir.pathComponents.starts(with: Self.sandboxRoot.pathComponents) {
             try? FileManager.default.removeItem(at: dir)
         }
-        super.tearDown()
     }
 
     /// Resolves `name` inside the sandbox, refusing anything that traverses out of it.
     private func tempURL(_ name: String) throws -> URL {
         let resolved = tempDir.appendingPathComponent(name).standardized
-        guard resolved.path.hasPrefix(tempDir.path) else { throw SandboxEscape(path: resolved.path) }
+        guard resolved.pathComponents.starts(with: tempDir.pathComponents) else { throw SandboxEscape(path: resolved.path) }
         return resolved
     }
 
@@ -73,7 +72,7 @@ final class SessionRecorderTests: XCTestCase {
     }
 
     /// Record 3 entries and verify the file has 3 lines.
-    func testRecordThreeEntriesProducesThreeLines() throws {
+    @Test func recordThreeEntriesProducesThreeLines() throws {
         let path = try tempPath("three_entries.jsonl")
         let recorder = SessionRecorder<TestMsg>(outputPath: path)
 
@@ -84,11 +83,11 @@ final class SessionRecorderTests: XCTestCase {
 
         let content = try String(contentsOfFile: path, encoding: .utf8)
         let lines = content.lines.filter { !$0.isEmpty }
-        XCTAssertEqual(lines.count, 3)
+        #expect(lines.count == 3)
     }
 
     /// Record and close produces valid JSON-lines (each line is valid JSON).
-    func testRecordAndCloseProducesValidJSONLines() throws {
+    @Test func recordAndCloseProducesValidJSONLines() throws {
         let path = try tempPath("valid_json.jsonl")
         let recorder = SessionRecorder<TestMsg>(outputPath: path)
 
@@ -104,12 +103,12 @@ final class SessionRecorderTests: XCTestCase {
         for line in lines {
             let data = Data(line.utf8)
             let entry = try decoder.decode(SessionEntry<TestMsg>.self, from: data)
-            XCTAssertGreaterThanOrEqual(entry.timestamp, 0.0)
+            #expect(entry.timestamp >= 0.0)
         }
     }
 
     /// Replay produces the correct number of model snapshots.
-    func testReplayProducesCorrectModelCount() throws {
+    @Test func replayProducesCorrectModelCount() throws {
         let path = try tempPath("replay_count.jsonl")
         let recorder = SessionRecorder<TestMsg>(outputPath: path)
 
@@ -127,14 +126,14 @@ final class SessionRecorderTests: XCTestCase {
         let snapshots = try player.play()
 
         // 3 message entries produce 3 snapshots; key event is skipped
-        XCTAssertEqual(snapshots.count, 3)
-        XCTAssertEqual(snapshots[0].count, 1)
-        XCTAssertEqual(snapshots[1].count, 2)
-        XCTAssertEqual(snapshots[2].count, 1)
+        try #require(snapshots.count == 3)
+        #expect(snapshots[0].count == 1)
+        #expect(snapshots[1].count == 2)
+        #expect(snapshots[2].count == 1)
     }
 
     /// Empty file produces empty snapshots array.
-    func testEmptyFileProducesEmptySnapshots() throws {
+    @Test func emptyFileProducesEmptySnapshots() throws {
         let url = try tempURL("empty.jsonl")
         try Data().write(to: url)
 
@@ -145,11 +144,11 @@ final class SessionRecorderTests: XCTestCase {
         )
         let snapshots = try player.play()
 
-        XCTAssertTrue(snapshots.isEmpty)
+        #expect(snapshots.isEmpty)
     }
 
     /// Corrupted line is skipped; valid lines still produce snapshots.
-    func testCorruptedFileSkipsInvalidLines() throws {
+    @Test func corruptedFileSkipsInvalidLines() throws {
         let path = try tempPath("corrupted.jsonl")
 
         // Write a valid entry, then garbage, then another valid entry
@@ -181,8 +180,8 @@ final class SessionRecorderTests: XCTestCase {
         let snapshots = try player.play()
 
         // 2 valid message entries, corrupted line skipped
-        XCTAssertEqual(snapshots.count, 2)
-        XCTAssertEqual(snapshots[0].count, 1)  // increment
-        XCTAssertEqual(snapshots[1].count, 10) // set(10)
+        try #require(snapshots.count == 2)
+        #expect(snapshots[0].count == 1)  // increment
+        #expect(snapshots[1].count == 10) // set(10)
     }
 }

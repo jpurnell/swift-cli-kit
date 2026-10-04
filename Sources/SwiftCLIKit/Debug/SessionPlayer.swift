@@ -90,7 +90,7 @@ public struct SessionPlayer<Model: Sendable, Message: Codable & Sendable>: Senda
 
     private func readFileData() throws -> Data {
         let url = URL(fileURLWithPath: inputPath).standardizedFileURL
-        // SECURITY: path sanitized via URL.standardizedFileURL
+        // SECURITY: debug tooling; the developer passes the recording to replay, and reading it is the point
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw SessionPlayerError.fileNotFound(inputPath)
         }

@@ -17,20 +17,30 @@ import SwiftCLIKit
 /// enabling fully isolated TUI sessions over SSH.
 ///
 /// ```swift
-/// let server = SSHServer(port: 2222)
+/// let server = SSHServer(
+///     port: 2222,
+///     configuration: SSHConfiguration(
+///         authMode: .password { user, password in user == "admin" && password == "secret" }
+///     )
+/// )
 /// try await server.start { backend, session in
 ///     // Run your TUI app using the SSH backend
 ///     backend.write("Welcome, \(session.remoteAddress)\r\n")
 /// }
 /// ```
 ///
-/// - Note: This is a simplified v1.12.0 implementation. The server accepts
-///   all connections without authentication by default. Production deployments
-///   should configure ``SSHConfiguration/authMode`` appropriately.
+/// ## Reachability and authentication
+/// Neither is left to a default that widens access. The server binds the loopback
+/// interface unless `host` names another address, and ``SSHConfiguration`` cannot be
+/// created without an ``SSHConfiguration/AuthMode``. The mode is enforced: clients are
+/// admitted only as ``SSHConfiguration/authMode`` allows.
 public struct SSHServer: Sendable {
     #if canImport(os)
     private static let logger = Logger(subsystem: "com.swiftclikit", category: "SSHServer")
     #endif
+
+    /// The loopback address, `127.0.0.1` — the default bind address.
+    public static let loopbackHost = "127.0.0.1"
 
     /// The host address to bind to.
     public let host: String
@@ -51,15 +61,18 @@ public struct SSHServer: Sendable {
 
     /// Creates an SSH server with the given parameters.
     /// - Parameters:
-    ///   - host: The address to bind to. Defaults to "0.0.0.0".
+    ///   - host: The address to bind to. Defaults to ``loopbackHost`` (`127.0.0.1`), which
+    ///     only this machine can reach. Pass `"0.0.0.0"`, or a specific interface address,
+    ///     to accept connections from other machines.
     ///   - port: The port to listen on. Defaults to 2222.
     ///   - hostKeySource: How to obtain the host key. Defaults to `.generateEphemeral`.
-    ///   - configuration: Server configuration. Defaults to ``SSHConfiguration``.
+    ///   - configuration: Server configuration. Required, because it carries the
+    ///     authentication mode and that has no default.
     public init(
-        host: String = "0.0.0.0",
+        host: String = SSHServer.loopbackHost,
         port: Int = 2222,
         hostKeySource: HostKeySource = .generateEphemeral,
-        configuration: SSHConfiguration = SSHConfiguration()
+        configuration: SSHConfiguration
     ) {
         self.host = host
         self.port = port
@@ -79,11 +92,48 @@ public struct SSHServer: Sendable {
     ) async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
-        let hostKey = NIOSSHPrivateKey(ed25519Key: .init())
-        let _ = SessionManager(maxConnections: configuration.maxConnections)
-        let authDelegate = AcceptAllAuth()
+        let serverChannel: any Channel
+        do {
+            serverChannel = try await bindListener(group: group, sessionHandler: sessionHandler)
+        } catch {
+            try await group.shutdownGracefully()
+            throw error
+        }
 
-        let sessionHandler = sessionHandler
+        #if canImport(os)
+        let bound = serverChannel.localAddress?.description ?? "\(host):\(port)"
+        Self.logger.info("SSH server listening on \(bound, privacy: .public)")
+        if !configuration.authMode.authenticatesClients {
+            Self.logger.warning("SSH server on \(bound, privacy: .public) authenticates nobody: authMode is .none")
+        }
+        #endif
+
+        do {
+            try await serverChannel.closeFuture.get()
+        } catch {
+            try await group.shutdownGracefully()
+            throw error
+        }
+        try await group.shutdownGracefully()
+    }
+
+    /// Binds the listening socket and returns its channel without waiting for it to close.
+    ///
+    /// ``start(sessionHandler:)`` is this plus the wait. It is separate so the address a
+    /// server actually binds can be read from the channel.
+    ///
+    /// - Parameters:
+    ///   - group: The event loop group the listener and its connections run on.
+    ///   - sessionHandler: A closure that handles each SSH session.
+    /// - Returns: The bound server channel.
+    /// - Throws: Any error from NIO bootstrap or binding.
+    func bindListener(
+        group: MultiThreadedEventLoopGroup,
+        sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
+    ) async throws -> any Channel {
+        let hostKey = NIOSSHPrivateKey(ed25519Key: .init())
+        let authDelegate = SSHAuthenticator(mode: configuration.authMode)
+
         let bootstrap = ServerBootstrap(group: group)
             .childChannelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture {
@@ -118,34 +168,58 @@ public struct SSHServer: Sendable {
             }
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
 
-        let serverChannel = try await bootstrap.bind(host: host, port: port).get()
-        #if canImport(os)
-        Self.logger.info("SSH server listening on \(host, privacy: .public):\(port, privacy: .public)")
-        #endif
-
-        do {
-            try await serverChannel.closeFuture.get()
-        } catch {
-            try await group.shutdownGracefully()
-            throw error
-        }
-        try await group.shutdownGracefully()
+        return try await bootstrap.bind(host: host, port: port).get()
     }
 }
 
-/// Simplified authentication delegate that accepts all connections.
+/// Decides which clients an ``SSHServer`` admits, according to its
+/// ``SSHConfiguration/AuthMode``.
 ///
-/// Intended for development use only. Production deployments should use
-/// ``SSHConfiguration/AuthMode/password(_:)`` or ``SSHConfiguration/AuthMode/publicKey``.
-private final class AcceptAllAuth: NIOSSHServerUserAuthenticationDelegate, Sendable {
-    /// Reports all authentication methods as supported.
-    var supportedAuthenticationMethods: NIOSSHAvailableUserAuthenticationMethods { .all }
+/// - ``SSHConfiguration/AuthMode/none`` admits every request.
+/// - ``SSHConfiguration/AuthMode/password(_:)`` admits a password request its validator
+///   accepts, and nothing else.
+/// - ``SSHConfiguration/AuthMode/publicKey`` admits a public-key request, and nothing else.
+///   NIOSSH has verified the client's signature before the request arrives here.
+final class SSHAuthenticator: NIOSSHServerUserAuthenticationDelegate, Sendable {
+    /// The mode this authenticator enforces.
+    let mode: SSHConfiguration.AuthMode
 
-    /// Accepts any authentication request unconditionally.
+    /// Creates an authenticator for the given mode.
+    /// - Parameter mode: The authentication mode to enforce.
+    init(mode: SSHConfiguration.AuthMode) {
+        self.mode = mode
+    }
+
+    /// The methods offered to a client: only those the mode can admit.
+    var supportedAuthenticationMethods: NIOSSHAvailableUserAuthenticationMethods {
+        switch mode {
+        case .none: return .all
+        case .password: return .password
+        case .publicKey: return .publicKey
+        }
+    }
+
+    /// Whether the mode admits this request.
+    /// - Parameter request: The client's authentication request.
+    /// - Returns: `true` when the client is to be authenticated.
+    func admits(_ request: NIOSSHUserAuthenticationRequest) -> Bool {
+        switch (mode, request.request) {
+        case (.none, _):
+            return true
+        case (.password(let validator), .password(let offered)):
+            return validator(request.username, offered.password)
+        case (.publicKey, .publicKey):
+            return true
+        case (.password, _), (.publicKey, _):
+            return false
+        }
+    }
+
+    /// Answers an authentication request with the mode's decision.
     func requestReceived(
         request: NIOSSHUserAuthenticationRequest,
         responsePromise: EventLoopPromise<NIOSSHUserAuthenticationOutcome>
     ) {
-        responsePromise.succeed(.success)
+        responsePromise.succeed(admits(request) ? .success : .failure)
     }
 }

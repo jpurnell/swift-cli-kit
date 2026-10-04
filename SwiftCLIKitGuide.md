@@ -1148,7 +1148,7 @@ connection gets its own `SSHBackend` that conforms to `TerminalBackend`.
 import SwiftCLIKitSSH
 
 let server = SSHServer(
-    host: "0.0.0.0",
+    host: "127.0.0.1",          // the default; "0.0.0.0" accepts other machines
     port: 2222,
     hostKeySource: .generateEphemeral,
     configuration: SSHConfiguration(
@@ -1166,7 +1166,13 @@ try await server.start { backend, session in
 }
 ```
 
-Auth modes: `.none`, `.password((String, String) -> Bool)`, `.publicKey`.
+Auth modes: `.none`, `.password((String, String) -> Bool)`, `.publicKey`. The mode is a
+required argument — `SSHConfiguration()` does not compile — and it is enforced: `.password`
+admits only what its closure accepts, `.publicKey` admits a client that proves it holds a
+key (any key), and `.none` admits everyone and logs a warning at startup.
+
+The server binds `127.0.0.1` unless `host` says otherwise. Publishing it is two decisions,
+each written down: a `host` other machines can reach, and an `authMode` that is not `.none`.
 
 Host key sources: `.generateEphemeral`, `.filePath(String)`.
 

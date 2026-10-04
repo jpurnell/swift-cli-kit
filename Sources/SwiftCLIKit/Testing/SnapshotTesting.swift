@@ -138,7 +138,7 @@ public enum SnapshotTesting {
         }
 
         let fileManager = FileManager.default
-        // SECURITY: path sanitized via URL.standardizedFileURL above
+        // SECURITY: a test helper reading its own snapshot from the directory the test named, or the temp directory
         guard fileManager.fileExists(atPath: path) else {
             // First run: record the snapshot
             try? write(buffer, to: path) // silent: best-effort snapshot recording

@@ -82,8 +82,9 @@ public enum TerminalFormatter: Sendable {
     ) -> String {
         guard maxWidth > 0 else { return "" }
 
+        let formatLocale = Locale(identifier: locale)
         let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: locale)
+        dateFormatter.locale = formatLocale
 
         // Try medium style first
         dateFormatter.dateStyle = .medium
@@ -100,8 +101,10 @@ public enum TerminalFormatter: Sendable {
             return short
         }
 
-        // Year only
-        let calendar = Calendar.current
+        // Year only, in the requested locale's calendar and the formatter's time zone
+        // so it names the same year the medium and short styles above would.
+        var calendar = formatLocale.calendar
+        calendar.timeZone = dateFormatter.timeZone
         let year = "\(calendar.component(.year, from: date))"
         if year.count <= maxWidth {
             return year

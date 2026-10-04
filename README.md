@@ -17,7 +17,7 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "1.4.1"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.0.0"),
 ]
 ```
 
@@ -46,6 +46,28 @@ while let key = reader.readKey() {
     print("Key: \(key)")
 }
 ```
+
+## Serving over SSH
+
+`SwiftCLIKitSSH` serves an app to each SSH connection. Who can reach the server and who it
+lets in are both explicit:
+
+```swift
+import SwiftCLIKitSSH
+
+let server = SSHServer(
+    port: 2222,                                   // host defaults to 127.0.0.1
+    configuration: SSHConfiguration(
+        authMode: .password { user, password in   // required — there is no default
+            user == "admin" && password == "secret"
+        }
+    )
+)
+```
+
+Pass `host: "0.0.0.0"` to accept connections from other machines. `authMode: .none` admits
+every client and is for development on loopback. Upgrading from 1.x: see the migration table
+in [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 
