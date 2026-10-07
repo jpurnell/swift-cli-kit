@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 #if canImport(Darwin)
 import Darwin
@@ -40,7 +39,7 @@ public final class RawTerminal: Sendable {
     private let fd: Int32
     private let ownsDescriptor: Bool
     #if canImport(Darwin) || canImport(Glibc)
-    private let state: Mutex<RawTerminalState>
+    private let state: LockedState<RawTerminalState>
     #endif
 
     /// Creates a raw terminal wrapping the given file descriptor.
@@ -68,7 +67,7 @@ public final class RawTerminal: Sendable {
                 initial.rawModeActive = true
             }
         }
-        self.state = Mutex(initial)
+        self.state = LockedState(initial)
         #endif
     }
 

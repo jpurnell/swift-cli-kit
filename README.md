@@ -9,7 +9,7 @@ Pure Swift terminal abstraction library -- raw mode, input parsing, line editing
 ## Requirements
 
 - **Swift 6.2+** — the manifest is `swift-tools-version: 6.2`; earlier toolchains cannot parse it
-- macOS 15+ or Linux
+- macOS 14+, iOS 17+ or visionOS 1+, or Linux
 
 ## Installation
 

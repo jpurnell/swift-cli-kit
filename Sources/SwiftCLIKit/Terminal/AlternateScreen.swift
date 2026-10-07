@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 #if canImport(Darwin)
 import Darwin
@@ -30,7 +29,7 @@ import Glibc
 /// ```
 public final class AlternateScreen: Sendable {
     private let fd: Int32
-    private let _isActive: Mutex<Bool>
+    private let _isActive: LockedState<Bool>
 
     /// Whether the alternate screen is currently active.
     public var isActive: Bool {
@@ -50,7 +49,7 @@ public final class AlternateScreen: Sendable {
     ///     has already resolved the question — or a test driving a pipe — can supply it.
     public init(fileDescriptor: Int32 = 1, isTerminal: (Int32) -> Bool = { isatty($0) != 0 }) {
         self.fd = fileDescriptor
-        self._isActive = Mutex(false)
+        self._isActive = LockedState(false)
         guard isTerminal(fileDescriptor) else { return }
         writeEscape("\u{001B}[?1049h")
         _isActive.withLock { $0 = true }

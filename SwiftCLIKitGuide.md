@@ -41,8 +41,8 @@ beyond the system libc already linked by Swift.
   Mutating methods make state changes explicit at the call site.
 - **Swift 6 strict concurrency.** Every public type is `Sendable`. The few
   reference types (`RawTerminal`, `StatusArea`, `AlternateScreen`, `TestBackend`,
-  `SSHBackend`) use `@unchecked Sendable` with lock-based synchronization and
-  documented justifications.
+  `SSHBackend`) keep their mutable state behind a lock and are checked `Sendable`
+  — none of them is `@unchecked`.
 - **Zero C dependencies.** The library depends only on Foundation and
   Darwin/Glibc. No AppKit, UIKit, or SwiftUI. The SSH module additionally
   depends on swift-nio-ssh.
@@ -1198,7 +1198,7 @@ Add SwiftCLIKit to your `Package.swift`:
 ```swift
 let package = Package(
     name: "MyApp",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/jpurnell/SwiftCLIKit.git", from: "1.0.0"),
     ],

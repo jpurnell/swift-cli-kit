@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 /// An in-memory terminal backend for headless testing.
 ///
@@ -26,7 +25,7 @@ public final class TestBackend: TerminalBackend, Sendable {
         var isCursorHidden: Bool = false
     }
 
-    private let state: Mutex<State>
+    private let state: LockedState<State>
     private let _eventStream: AsyncStream<Event>
 
     /// The width of the virtual terminal in columns.
@@ -43,7 +42,7 @@ public final class TestBackend: TerminalBackend, Sendable {
         self.height = height
         var cont: AsyncStream<Event>.Continuation?
         self._eventStream = AsyncStream { cont = $0 }
-        self.state = Mutex(State(
+        self.state = LockedState(State(
             buffer: CellBuffer(width: width, height: height),
             eventContinuation: cont
         ))

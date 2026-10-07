@@ -146,7 +146,7 @@ Every node renders on both surfaces; every interactive node dispatches a
 ## Requirements
 
 - Swift 6.0+
-- Terminal surface: macOS 15+ or Linux
+- Terminal surface: macOS 14+ or Linux
 - SwiftUI surface (`SwiftGUIKitSwiftUI`): any Apple platform with SwiftUI
 
 ## Installation

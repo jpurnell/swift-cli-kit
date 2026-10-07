@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 #if canImport(Darwin)
 import Darwin
@@ -17,7 +16,7 @@ private struct ResizeState: Sendable {
     var signalHandlerInstalled: Bool = false
 }
 
-private let resizeState = Mutex(ResizeState())
+private let resizeState = LockedState(ResizeState())
 
 private func installSignalHandler() {
     resizeState.withLock { state in
@@ -94,7 +93,7 @@ public struct TerminalSize: Sendable, Equatable {
 /// An opaque token whose lifetime controls a SIGWINCH resize subscription.
 /// Deallocation automatically deregisters the callback.
 public final class ResizeToken: Sendable {
-    fileprivate let _identifier = Mutex<ObjectIdentifier?>(nil)
+    fileprivate let _identifier = LockedState<ObjectIdentifier?>(nil)
 
     deinit {
         #if canImport(Darwin) || canImport(Glibc)

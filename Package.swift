@@ -14,7 +14,7 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftCLIKit",
-    platforms: [.macOS(.v15), .iOS(.v18)],
+    platforms: [.macOS(.v14), .iOS(.v17), .visionOS(.v1)],
     products: [
         .library(name: "SwiftCLIKit", targets: ["SwiftCLIKit"]),
         .library(name: "SwiftCLIKitSSH", targets: ["SwiftCLIKitSSH"]),
@@ -27,6 +27,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio-ssh.git", from: "0.9.0"),
+        // Already in the graph through swift-nio. Named here only for the examples target,
+        // whose SIGINT handler needs a flag that is safe to set from a signal handler — a
+        // lock is not. No library product links it.
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3"),
     ],
     targets: [
@@ -62,7 +66,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "swiftclikit-examples",
-            dependencies: ["SwiftCLIKit"],
+            dependencies: [
+                "SwiftCLIKit",
+                .product(name: "Atomics", package: "swift-atomics"),
+            ],
             path: "Sources/swiftclikit-examples"
         ),
         .testTarget(

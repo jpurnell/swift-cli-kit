@@ -4,11 +4,10 @@
 
 import Testing
 import Foundation
-import Synchronization
 @testable import SwiftCLIKit
 
 private final class CaptureBuffer: Sendable {
-    private let state: Mutex<[String]> = Mutex([])
+    private let state: LockedState<[String]> = LockedState([])
 
     func append(_ value: String) {
         state.withLock { $0.append(value) }

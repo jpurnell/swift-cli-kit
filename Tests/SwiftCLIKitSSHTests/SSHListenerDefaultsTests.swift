@@ -6,12 +6,12 @@ import Foundation
 import NIOCore
 import NIOPosix
 import NIOSSH
-import Synchronization
+import SwiftCLIKit
 @testable import SwiftCLIKitSSH
 
 /// Records the credentials a password validator was shown.
 private final class SeenCredentials: Sendable {
-    private let state: Mutex<[String]> = Mutex([])
+    private let state: LockedState<[String]> = LockedState([])
 
     func record(_ user: String, _ password: String) {
         state.withLock { $0.append("\(user):\(password)") }

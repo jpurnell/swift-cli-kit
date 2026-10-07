@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-06
+
+A minor after 2.0.0 — a lower floor takes nothing away from
+anyone already on macOS 15, and no public API changes.
+
+### Changed
+
+- **The platform floor is macOS 14 and iOS 17**, down from macOS 15 and iOS 18. The
+  deployment host is capped at macOS 14.8.9, and a binary built against the old floor did
+  not fail to compile for it — it failed to launch on it:
+  `dyld: Library not loaded: /usr/lib/swift/libswiftSynchronization.dylib`. Every package
+  that depends on this one inherited the floor, so the server binaries downstream could not
+  be deployed at all.
+- **visionOS 1 is declared.** It was the implicit floor already and every library target
+  builds for it; the manifest now says so.
+- **`Synchronization` is no longer imported anywhere.** `Mutex` was the only thing keeping
+  the libraries on macOS 15. Its ten uses across nine files in `SwiftCLIKit` and `SwiftCLIKitSSH` now go
+  through one package-internal type, `LockedState`, which is `OSAllocatedUnfairLock` on
+  Apple platforms (macOS 13, iOS 16) and a `pthread_mutex_t` elsewhere. On Apple platforms
+  that is the same `os_unfair_lock` `Mutex` wrapped, so locking behaviour is unchanged,
+  including that it is not recursive. `BufferRef`, `RawTerminal`, `AlternateScreen`,
+  `StatusArea`, `TestBackend`, `RealBackend`, `SSHBackend`, `ResizeToken` and
+  `SnapshotTesting` are `Sendable` exactly as before, with no `@unchecked`.
+- `swiftclikit-examples` now depends on `swift-atomics` for the one `Atomic<Bool>` it used
+  — the flag its SIGINT handler raises. That stays an atomic rather than becoming a lock
+  because a signal handler that takes a lock the interrupted thread already holds traps.
+  `swift-atomics` was already in the graph through `swift-nio`; no library product links
+  it, and `Package.resolved` is unchanged.
+
+### Added
+
+- A test that reads the declared macOS floor from `Package.swift` and fails if any file
+  under `Sources/` imports `Synchronization` while that floor is below 15. The compiler
+  only catches this when building for the lower target, which a newer development machine
+  does not do by default.
+
+### Not changed
+
+- tvOS and watchOS remain undeclared. `SwiftCLIKit`, `SwiftCLIKitSSH`, `SwiftGUIKit` and
+  `QualityGateDashboard` build for tvOS 17 and watchOS 10; `SwiftGUIKitSwiftUI` does not,
+  because it uses SwiftUI views those platforms do not have (`OutlineGroup`, `TextEditor`,
+  segmented pickers). That is a porting job, not a floor.
+- The non-Apple `LockedState` path is exercised on macOS by building with
+  `-DSWIFTCLIKIT_PTHREAD_LOCK`; it has not been built on Linux, which has no CI here.
+
 ## [2.0.0] - 2026-10-03
 
 A major version, because `SSHServer()` and `SSHConfiguration()` no longer compile. That is

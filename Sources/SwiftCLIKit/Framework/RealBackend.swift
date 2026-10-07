@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 #if canImport(Darwin)
 import Darwin
@@ -28,13 +27,13 @@ import Glibc
 public final class RealBackend: TerminalBackend, Sendable {
     private let terminal: RawTerminal
     private let reader: KeyReader
-    private let altScreenState: Mutex<AlternateScreen?>
+    private let altScreenState: LockedState<AlternateScreen?>
 
     /// Creates a real backend that reads from stdin and writes to stdout.
     public init() {
         self.terminal = RawTerminal()
         self.reader = KeyReader(terminal: terminal)
-        self.altScreenState = Mutex(nil)
+        self.altScreenState = LockedState(nil)
     }
 
     /// Enters raw mode.

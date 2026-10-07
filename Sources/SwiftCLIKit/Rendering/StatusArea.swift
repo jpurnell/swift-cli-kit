@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 /// A thread-safe rolling message area for displaying status lines in a terminal UI.
 ///
@@ -11,13 +10,13 @@ import Synchronization
 /// them as truncated, optionally dimmed lines.
 public final class StatusArea: Sendable {
     private let maxMessages: Int
-    private let state: Mutex<[String]>
+    private let state: LockedState<[String]>
 
     /// Creates a status area that retains up to `maxMessages` lines.
     /// - Parameter maxMessages: Maximum number of messages to keep. Defaults to 5.
     public init(maxMessages: Int = 5) {
         self.maxMessages = maxMessages
-        self.state = Mutex([])
+        self.state = LockedState([])
     }
 
     /// Appends a message, evicting the oldest if at capacity.

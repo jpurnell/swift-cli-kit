@@ -5,7 +5,7 @@
 
 import SwiftCLIKit
 import Foundation
-import Synchronization
+import Atomics
 
 #if canImport(Darwin)
 import Darwin
@@ -13,7 +13,25 @@ import Darwin
 import Glibc
 #endif
 
-private let shouldExitFlag = Atomic<Bool>(false)
+/// A one-way "stop now" flag that is safe to raise from a signal handler.
+///
+/// This is an atomic rather than the package's `LockedState` on purpose. SIGINT is
+/// delivered on whichever thread the kernel picks, including one that is in the middle of
+/// reading the flag; a handler that then took the same lock would trap. A lock-free store
+/// has no such window. `Synchronization.Atomic` did this job until the macOS floor moved
+/// to 14, where it does not exist; `ManagedAtomic` is the same operation without the
+/// availability.
+private struct ExitFlag: Sendable {
+    private let raised = ManagedAtomic<Bool>(false)
+
+    /// Whether ``raise()`` has been called.
+    var isRaised: Bool { raised.load(ordering: .acquiring) }
+
+    /// Sets the flag. There is no lowering it.
+    func raise() { raised.store(true, ordering: .releasing) }
+}
+
+private let shouldExitFlag = ExitFlag()
 
 /// Tier 4 is a walkthrough of production TUI architecture patterns, demonstrated
 /// through a generic JSON file-watcher dashboard. It simulates a pipeline that
@@ -107,7 +125,7 @@ enum LiveDashboard {
         runDashboard(statusPath: statusPath)
 
         // Clean up
-        shouldExitFlag.store(true, ordering: .releasing)
+        shouldExitFlag.raise()
         // Give the updater thread a moment to notice the flag
         Thread.sleep(forTimeInterval: 0.1)
         cleanupStatusFile(at: statusPath)
@@ -128,7 +146,7 @@ enum LiveDashboard {
                 guard let ptr = buffer.baseAddress else { return }
                 _ = write(1, ptr, buffer.count)
             }
-            shouldExitFlag.store(true, ordering: .releasing)
+            shouldExitFlag.raise()
         }
     }
 
@@ -213,7 +231,7 @@ enum LiveDashboard {
         let epochsTotal = 10
 
         for tick in 0..<Config.maxUpdates {
-            guard !shouldExitFlag.load(ordering: .acquiring) else { return }
+            guard !shouldExitFlag.isRaised else { return }
 
             elapsed = tick + 1
 
@@ -274,7 +292,7 @@ enum LiveDashboard {
         var pollCount = 0
         let maxPolls = Int(Double(Config.maxUpdates) * Config.updateInterval / Config.pollInterval) + 20
 
-        while !shouldExitFlag.load(ordering: .acquiring), pollCount < maxPolls {
+        while !shouldExitFlag.isRaised, pollCount < maxPolls {
             let size = TerminalSize.current()
             let width = max(size.columns, Config.minimumWidth)
 

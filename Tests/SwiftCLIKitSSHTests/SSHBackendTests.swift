@@ -4,13 +4,12 @@
 
 import Testing
 import Foundation
-import Synchronization
 @testable import SwiftCLIKitSSH
 import SwiftCLIKit
 
 /// Thread-safe accumulator for captured output strings.
 private final class CapturedOutput: Sendable {
-    private let state: Mutex<[String]> = Mutex([])
+    private let state: LockedState<[String]> = LockedState([])
 
     func append(_ string: String) {
         state.withLock { $0.append(string) }

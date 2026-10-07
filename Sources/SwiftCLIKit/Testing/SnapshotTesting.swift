@@ -3,7 +3,6 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
-import Synchronization
 
 /// Utilities for snapshot-based testing of ``CellBuffer`` contents.
 ///
@@ -154,7 +153,7 @@ public enum SnapshotTesting {
     }
 
     /// The last snapshot failure message, if any. Useful for test inspection.
-    private static let _lastSnapshotFailureStorage = Mutex<String?>(nil)
+    private static let _lastSnapshotFailureStorage = LockedState<String?>(nil)
 
     /// The most recent snapshot assertion failure message, or `nil` if all passed.
     public static var _lastSnapshotFailure: String? {

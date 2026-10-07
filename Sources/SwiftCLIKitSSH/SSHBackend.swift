@@ -6,7 +6,6 @@ import Foundation
 import SwiftCLIKit
 import NIOCore
 import NIOSSH
-import Synchronization
 
 /// A `TerminalBackend` that operates over an SSH channel.
 ///
@@ -35,7 +34,7 @@ public final class SSHBackend: TerminalBackend, Sendable {
     private let inputBuffer: AsyncStream<UInt8>
     private let inputContinuation: AsyncStream<UInt8>.Continuation
     private let outputHandler: @Sendable (String) -> Void
-    private let sizeState: Mutex<TerminalSize>
+    private let sizeState: LockedState<TerminalSize>
     /// Whether the SSH session is an interactive PTY. The network analog of
     /// `isatty` — non-interactive `exec` sessions (no PTY) must not receive
     /// cursor/screen-control escapes, which would garble captured output.
@@ -61,7 +60,7 @@ public final class SSHBackend: TerminalBackend, Sendable {
         isInteractive: Bool = true,
         outputHandler: @escaping @Sendable (String) -> Void
     ) throws {
-        self.sizeState = Mutex(initialSize)
+        self.sizeState = LockedState(initialSize)
         self.isInteractive = isInteractive
         self.outputHandler = outputHandler
         var cont: AsyncStream<UInt8>.Continuation?
