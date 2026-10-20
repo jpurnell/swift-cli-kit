@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-10-20
+
+No public API changes.
+
+### Fixed
+
+- **A progress bar with a NaN ratio no longer stops the process.** `ProgressBarLayout`
+  clamped `current / total` with `min(max(_, 0), 1)`, which does not remove NaN, then
+  converted it with `Int(ratio * 100)`, which traps on NaN. A NaN `current`, or an
+  infinite `current` over an infinite `total`, crashed `ProgressBar.render` and
+  SwiftGUIKit's `CellRenderer`. Those inputs now resolve to the zero-total fallback —
+  no bar, and `"0%"` when a percentage is shown. Found by the `fallback` rule in
+  quality-gate `d7b2bbf`; the 3.5.0 binary used locally did not report it.
+- **The Quality Gate workflow reaches the corpus over the deploy key.** It passed
+  `corpus-token: ${{ secrets.CORPUS_PUSH_TOKEN }}`, an input the reusable workflow has
+  deprecated, and the public repository had no secret by that name, so the corpus
+  checkout failed with "no corpus credential was supplied". It now passes
+  `corpus-deploy-key: ${{ secrets.CORPUS_DEPLOY_KEY }}`, as every other caller does.
+
 ## [2.1.1] - 2026-10-20
 
 No code changes.

@@ -28,12 +28,22 @@ public struct ProgressBarLayout: Sendable, Equatable {
     ///   - current: The current progress value.
     ///   - total: The total value; values `<= 0` produce ``Content/zeroTotal(label:)``.
     ///   - showPercentage: Whether to include a percentage label.
+    ///
+    /// A ratio that is not a number — a NaN `current`, or an infinite `current` over an
+    /// infinite `total` — also produces ``Content/zeroTotal(label:)``. Clamping cannot
+    /// remove NaN (`max(.nan, 0)` is NaN), and converting it to `Int` would trap.
     public init(current: Double, total: Double, showPercentage: Bool) {
+        let fallback = Content.zeroTotal(label: showPercentage ? "0%" : nil)
         guard total > 0 else {
-            content = .zeroTotal(label: showPercentage ? "0%" : nil)
+            content = fallback
             return
         }
-        let ratio = Swift.min(Swift.max(current / total, 0.0), 1.0)
+        let rawRatio = current / total
+        guard !rawRatio.isNaN else {
+            content = fallback
+            return
+        }
+        let ratio = Swift.min(Swift.max(rawRatio, 0.0), 1.0)
         let label: String? = showPercentage ? "\(Int(ratio * 100))%" : nil
         content = .bar(ratio: ratio, label: label)
     }

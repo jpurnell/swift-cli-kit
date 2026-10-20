@@ -18,4 +18,4 @@ jobs:
       continue-on-failure: true
       corpus-repo: jpurnell/org-judgement-corpus
     secrets:
-      corpus-token: ${{ secrets.CORPUS_PUSH_TOKEN }}
+      corpus-deploy-key: ${{ secrets.CORPUS_DEPLOY_KEY }}
