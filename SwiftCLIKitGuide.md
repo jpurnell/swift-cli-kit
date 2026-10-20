@@ -1200,12 +1200,14 @@ let package = Package(
     name: "MyApp",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/jpurnell/SwiftCLIKit.git", from: "1.0.0"),
+        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.1.0"),
     ],
     targets: [
         .executableTarget(
             name: "MyApp",
-            dependencies: ["SwiftCLIKit"]
+            dependencies: [
+                .product(name: "SwiftCLIKit", package: "swift-cli-kit"),
+            ]
         ),
     ]
 )

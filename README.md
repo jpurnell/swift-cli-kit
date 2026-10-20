@@ -17,9 +17,13 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.0.0"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.1.0"),
 ]
 ```
+
+`jpurnell/swift-cli-kit` is the public repository; each release lands there as one
+clean-history commit with its tag. `2.1.0` is the first release whose floor is macOS 14;
+`2.0.0` needs macOS 15.
 
 Then depend on the products you need — `SwiftCLIKit` for the terminal layer,
 `SwiftGUIKit` for the cross-surface scene graph:

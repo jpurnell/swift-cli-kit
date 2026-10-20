@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-20
+
+No code changes.
+
+### Fixed
+
+- **The Quality Gate workflow starts again.** It granted `permissions: contents: read`,
+  but the reusable workflow it calls in `jpurnell/quality-gate-swift` requests
+  `issues: write`. A called workflow cannot hold more than its caller grants, so GitHub
+  rejected every run with `startup_failure` before any job began. The caller now grants
+  `contents: read` and `issues: write`. The reusable workflow is referenced at `@main`,
+  so a future permission it adds will break the caller the same way.
+- **The install snippets name the public repository, and it resolves.** The README and
+  `SwiftCLIKitGuide.md` name `github.com/jpurnell/swift-cli-kit.git` with
+  `from: "2.1.0"` and `.product(name: "SwiftCLIKit", package: "swift-cli-kit")` — the
+  package identity follows the URL, so the guide's bare `"SwiftCLIKit"` dependency is
+  now an explicit product reference.
+
+  This reverses an unreleased change made on 2026-10-09, which pointed both snippets
+  at the private `jpurnell/SwiftCLIKit` because the public repository held only v1.4.1
+  and v1.4.2. That was true when it was written and stopped being true the same
+  afternoon, when v2.0.0 and v2.1.0 were exported to the public repository. A public
+  README naming a repository its readers cannot open was the wrong fix to keep.
+- `SwiftCLIKitGuide.md` paired `platforms: [.macOS(.v14)]` with `from: "1.0.0"`, which
+  resolves to 1.4.0 — a release whose floor is macOS 15. It says `from: "2.1.0"`.
+
 ## [2.1.0] - 2026-10-06
 
 A minor after 2.0.0 — a lower floor takes nothing away from
