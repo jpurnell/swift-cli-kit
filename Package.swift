@@ -32,6 +32,10 @@ let package = Package(
         // lock is not. No library product links it.
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3"),
+        // Already in the graph through swift-nio-ssh, whose key types are Crypto's. Named here so
+        // SwiftCLIKitSSH can build an `NIOSSHPrivateKey` from a host key file; nothing new is
+        // resolved or linked. The range is swift-nio-ssh's own.
+        .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0"..<"5.0.0"),
     ],
     targets: [
         .target(
@@ -62,6 +66,7 @@ let package = Package(
             dependencies: [
                 "SwiftCLIKit",
                 .product(name: "NIOSSH", package: "swift-nio-ssh"),
+                .product(name: "Crypto", package: "swift-crypto"),
             ]
         ),
         .executableTarget(
@@ -81,7 +86,8 @@ let package = Package(
             dependencies: [
                 "SwiftCLIKitSSH",
                 .product(name: "NIOSSH", package: "swift-nio-ssh"),
-            ]
+            ],
+            resources: [.copy("Fixtures")]
         ),
         .testTarget(
             name: "SwiftGUIKitTests",

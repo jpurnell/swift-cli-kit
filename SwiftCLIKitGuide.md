@@ -1174,7 +1174,26 @@ key (any key), and `.none` admits everyone and logs a warning at startup.
 The server binds `127.0.0.1` unless `host` says otherwise. Publishing it is two decisions,
 each written down: a `host` other machines can reach, and an `authMode` that is not `.none`.
 
-Host key sources: `.generateEphemeral`, `.filePath(String)`.
+Host key sources: `.generateEphemeral`, `.filePath(String)`. The host key is how clients
+recognize the server, so anything reachable from other machines should load one from a file:
+
+```sh
+ssh-keygen -t ed25519 -N "" -f /etc/myapp/ssh_host_ed25519_key   # mode 0600, owner only
+```
+
+```swift
+let server = SSHServer(
+    host: "0.0.0.0",
+    hostKeySource: .filePath("/etc/myapp/ssh_host_ed25519_key"),
+    configuration: SSHConfiguration(authMode: .publicKey)
+)
+```
+
+`.filePath` reads an unencrypted Ed25519 key in OpenSSH's format and refuses a file other
+users can read, as OpenSSH does. A file it cannot use stops `start` with an
+`SSHServer.HostKeyError` before the server listens; it never falls back to an ephemeral key.
+`.generateEphemeral` presents a new key on every start, so clients cannot tell the server from
+an impersonator; a server bound beyond loopback with it logs a warning.
 
 ---
 

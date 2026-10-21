@@ -52,10 +52,30 @@ public struct SSHServer: Sendable {
     public let configuration: SSHConfiguration
 
     /// Source for the SSH server's host key.
+    ///
+    /// The host key is how clients recognize the server. They record it on first connection and
+    /// warn if it ever changes, which is what stops another machine from impersonating the
+    /// server and collecting the passwords sent to it.
     public enum HostKeySource: Sendable {
         /// Generate an ephemeral Ed25519 key each time the server starts (development mode).
+        ///
+        /// Clients see a new key after every restart, so they cannot tell the server from an
+        /// impersonator, and users learn to accept the warning that would have caught one.
+        /// Use it only where nothing untrusted can reach the port. A server bound to another
+        /// address with this source logs a warning at startup.
         case generateEphemeral
         /// Load the host key from the given file path.
+        ///
+        /// The file must be an unencrypted Ed25519 key in OpenSSH's format, readable and
+        /// writable only by its owner, as OpenSSH requires of its own host keys:
+        ///
+        /// ```sh
+        /// ssh-keygen -t ed25519 -N "" -f /path/to/ssh_host_ed25519_key
+        /// ```
+        ///
+        /// A file that cannot be used stops ``SSHServer/start(sessionHandler:)`` with a
+        /// ``SSHServer/HostKeyError`` before the server listens. It never falls back to an
+        /// ephemeral key.
         case filePath(String) // LIVE: public API
     }
 
@@ -86,7 +106,8 @@ public struct SSHServer: Sendable {
     /// with an ``SSHBackend`` and ``SSHSession`` for that connection.
     ///
     /// - Parameter sessionHandler: A closure that handles each SSH session.
-    /// - Throws: Any error from NIO bootstrap or binding.
+    /// - Throws: ``SSHServer/HostKeyError`` if the host key file cannot be used, before
+    ///   anything listens; otherwise any error from NIO bootstrap or binding.
     public func start(
         sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
     ) async throws {
@@ -105,6 +126,9 @@ public struct SSHServer: Sendable {
         Self.logger.info("SSH server listening on \(bound, privacy: .public)")
         if !configuration.authMode.authenticatesClients {
             Self.logger.warning("SSH server on \(bound, privacy: .public) authenticates nobody: authMode is .none")
+        }
+        if case .generateEphemeral = hostKeySource, host != Self.loopbackHost {
+            Self.logger.warning("SSH server on \(bound, privacy: .public) presents an ephemeral host key: clients cannot tell it from an impersonator across restarts. Use HostKeySource.filePath.")
         }
         #endif
 
@@ -126,12 +150,13 @@ public struct SSHServer: Sendable {
     ///   - group: The event loop group the listener and its connections run on.
     ///   - sessionHandler: A closure that handles each SSH session.
     /// - Returns: The bound server channel.
-    /// - Throws: Any error from NIO bootstrap or binding.
+    /// - Throws: ``SSHServer/HostKeyError`` if the host key file cannot be used, before
+    ///   anything listens; otherwise any error from NIO bootstrap or binding.
     func bindListener(
         group: MultiThreadedEventLoopGroup,
         sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
     ) async throws -> any Channel {
-        let hostKey = NIOSSHPrivateKey(ed25519Key: .init())
+        let hostKey = try hostKeySource.privateKey()
         let authDelegate = SSHAuthenticator(mode: configuration.authMode)
 
         let bootstrap = ServerBootstrap(group: group)

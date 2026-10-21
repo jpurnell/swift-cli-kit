@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-10-20
+
+A security fix, released as a patch. It adds one public type, `SSHServer.HostKeyError`, which
+SemVer would place in a minor release; it ships here because the fix should not wait for
+2.2.0, and the type exists only to report the fix's refusals.
+
+### Security
+
+- **`HostKeySource.filePath` is enforced.** `SSHServer` generated a fresh Ed25519 host key on
+  every start whichever source was named, so a server presented a new identity each time it
+  restarted. Its clients could not tell it from an impersonator, and users learned to accept
+  the changed-key warning that exists to catch one — the opening a machine-in-the-middle needs
+  to collect the passwords sent to the server. `.filePath` now loads the named key: an
+  unencrypted Ed25519 key in OpenSSH's format, as `ssh-keygen -t ed25519 -N ""` writes it.
+
+### Changed
+
+- **A host key file that cannot be used stops the server.** `start` throws the new
+  `SSHServer.HostKeyError` before listening when the file is missing or unreadable, readable
+  by other users (OpenSSH's rule; `chmod 600` it), passphrase-protected, of a type other than
+  `ssh-ed25519`, or internally inconsistent. Code that passed `.filePath` with a path that
+  did not hold a usable key used to start with an ephemeral key; it now fails, which is the
+  point — there is no fallback.
+- **A server bound beyond loopback with `.generateEphemeral` logs a warning** at startup,
+  as one with `authMode: .none` already does.
+- `SwiftCLIKitSSH` names `swift-crypto` in the manifest, to build a key from the file. It was
+  already resolved and linked through `swift-nio-ssh`; nothing new is downloaded.
+
 ## [2.1.2] - 2026-10-20
 
 No public API changes.
