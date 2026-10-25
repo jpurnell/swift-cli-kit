@@ -82,7 +82,7 @@ public final class TestBackend: TerminalBackend, Sendable {
     /// The async stream of events for consumption by the app runtime.
     public var eventStream: AsyncStream<Event> { _eventStream }
 
-    /// All buffers that have been submitted via `submitRender(_:)`.
+    /// All buffers that have been recorded with ``submitRender(_:)``, oldest first.
     public var renderHistory: [CellBuffer] {
         state.withLock { $0.history }
     }
@@ -92,9 +92,19 @@ public final class TestBackend: TerminalBackend, Sendable {
         state.withLock { $0.history.removeAll() }
     }
 
-    /// Called by the App runtime to submit a rendered buffer.
+    /// Records a rendered buffer as the current screen and appends it to ``renderHistory``.
+    ///
+    /// Nothing in the library calls this: ``App`` drives a real terminal, not a backend. A test
+    /// renders a frame itself and records it here, then asserts on ``currentBuffer``.
+    ///
+    /// ```swift
+    /// let backend = TestBackend(width: 4, height: 1)
+    /// var frame = Frame(buffer: CellBuffer(width: 4, height: 1), rect: Rect(x: 0, y: 0, width: 4, height: 1))
+    /// frame.writeText("ok", x: 0, y: 0)
+    /// backend.submitRender(frame.cellBuffer)
+    /// ```
     /// - Parameter buf: The buffer to record.
-    internal func submitRender(_ buf: CellBuffer) {
+    public func submitRender(_ buf: CellBuffer) {
         state.withLock { state in
             state.buffer = buf
             state.history.append(buf)

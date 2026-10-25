@@ -17,12 +17,12 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.2.0"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.2.1"),
 ]
 ```
 
 `jpurnell/swift-cli-kit` is the public repository; each release lands there as one
-clean-history commit with its tag. `2.2.0` adds `SSHSession.clientIdentity` and
+clean-history commit with its tag. `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
 `AuthMode.verifier`; `2.1.0` is the first release whose floor is macOS 14; `2.0.0` needs macOS 15.
 
 Then depend on the products you need — `SwiftCLIKit` for the terminal layer,

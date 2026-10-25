@@ -1317,7 +1317,7 @@ let package = Package(
     name: "MyApp",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.1.0"),
+        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.2.1"),
     ],
     targets: [
         .executableTarget(

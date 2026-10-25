@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-25
+
+### Fixed
+
+- **`TestBackend.submitRender(_:)` is public.** `renderHistory` and `currentBuffer` were public,
+  but the only way to fill them was internal, and nothing in the library called it: its doc
+  said the `App` runtime did, and `App` takes no backend. Outside this module a `TestBackend`'s
+  render history was always empty. A consumer's test now renders a frame and records it.
+  The 2.2.0 gate cleanup dropped the `// LIVE:` marker that had hidden this, and
+  quality-gate-swift's newer unreachable check failed the public 2.2.0 CI run on it; the
+  locally installed gate predated that check.
+
+### Known limitations
+
+- Built against the macOS 26 SDK (CI's Xcode 26.6), `SwiftUIRenderer.view(for:onAction:)` draws
+  four strict-concurrency warnings: it is nonisolated and calls SwiftUI `List` initializers that
+  SDK marks `@MainActor`. The macOS 27 SDK doesn't flag these calls. Marking the method
+  `@MainActor` would break callers outside the main actor, so it is not done in a patch release.
+  These warnings were already present in 2.1.3's CI runs.
+
 ## [2.2.0] - 2026-10-24
 
 The sign-in seam: who connected over SSH, an asynchronous verifier for an identity layer, and
