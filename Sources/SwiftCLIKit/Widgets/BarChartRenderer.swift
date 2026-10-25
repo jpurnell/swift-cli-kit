@@ -60,7 +60,8 @@ public enum BarChartRenderer {
             guard xOffset < frameWidth else { break }
 
             let ratio = Swift.min(Swift.max(bar.value / maxVal, 0.0), 1.0)
-            let barHeight = Int(ratio * Double(chartHeight))
+            // A NaN value has no height: the bar is drawn empty.
+            let barHeight = ratio >= 0 && ratio <= 1 ? Int(ratio * Double(chartHeight)) : 0
             let barStyle = style(i)
 
             // Draw bar columns from bottom of chart area upward.
@@ -81,7 +82,10 @@ public enum BarChartRenderer {
 
             // Draw value above bar if requested.
             if showValues {
-                let valueStr = String(Int(bar.value))
+                // Truncated to a whole number; NaN, infinities and magnitudes an `Int`
+                // cannot hold are written as Swift writes them (`nan`, `inf`, `1e+300`).
+                let value = bar.value
+                let valueStr = abs(value) < 9e18 ? String(Int(value)) : "\(value)"
                 let valueX = xOffset + Swift.max((barWidth - valueStr.count) / 2, 0)
                 let valueY = frameHeight - 1 - labelRowCount - barHeight
                 guard valueY >= 0 else { continue }

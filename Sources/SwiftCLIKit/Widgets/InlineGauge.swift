@@ -51,8 +51,7 @@ public struct InlineGauge: Sendable {
     ) -> String {
         guard width > 0 else { return "" }
 
-        let ratio = clampedRatio(current: current, total: total)
-        let filledCount = Int((Double(width) * ratio).rounded())
+        let filledCount = scaledCount(current: current, total: total, scale: width)
         let unfilledCount = width - filledCount
 
         var result = ""
@@ -103,10 +102,9 @@ public struct InlineGauge: Sendable {
     ) -> String {
         guard width > 0 else { return "" }
 
-        let ratio = clampedRatio(current: current, total: total)
-        let percentage = Int((ratio * 100).rounded())
+        let percentage = scaledCount(current: current, total: total, scale: 100)
         let label = "\(percentage)%"
-        let filledCount = Int((Double(width) * ratio).rounded())
+        let filledCount = scaledCount(current: current, total: total, scale: width)
         let unfilledCount = width - filledCount
 
         // Build the visible character array (filled + unfilled) with label overlay
@@ -152,6 +150,21 @@ public struct InlineGauge: Sendable {
     }
 
     // MARK: - Private helpers
+
+    /// `scale × current / total`, rounded to the nearest whole number, with the
+    /// ratio clamped to `0...1`.
+    ///
+    /// - Parameters:
+    ///   - current: The current progress value.
+    ///   - total: The total; values `<= 0` count as no progress.
+    ///   - scale: The whole that a full ratio maps to (a width, or 100).
+    /// - Returns: A count in `0...scale`, or `0` when `total <= 0`.
+    private static func scaledCount(current: Int, total: Int, scale: Int) -> Int {
+        let ratio = clampedRatio(current: current, total: total)
+        // `clampedRatio` divides two integers by a positive divisor, so this always holds.
+        guard (0.0...1.0).contains(ratio) else { return 0 }
+        return Int((Double(scale) * ratio).rounded())
+    }
 
     /// Computes the fill ratio clamped to 0.0...1.0.
     /// Returns 0.0 when `total <= 0`.

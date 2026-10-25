@@ -12,6 +12,13 @@ import Darwin
 #elseif canImport(Glibc)
 import Glibc
 #endif
+#if canImport(os)
+import os
+
+/// Diagnostics for the status-file round trip. The terminal is the dashboard, so failures
+/// go to the unified log rather than into the frame.
+private let statusLogger = Logger(subsystem: "com.swiftclikit.examples", category: "LiveDashboard")
+#endif
 
 /// A one-way "stop now" flag that is safe to raise from a signal handler.
 ///
@@ -76,14 +83,6 @@ enum LiveDashboard {
         case evaluating = "Evaluating"
         case complete = "Complete"
 
-        /// The next phase in the pipeline, or nil if complete.
-        var next: Phase? { // LIVE: public API
-            let all = Phase.allCases
-            guard let idx = all.firstIndex(of: self) else { return nil }
-            let nextIdx = all.index(after: idx)
-            guard nextIdx < all.endIndex else { return nil }
-            return all[nextIdx]
-        }
     }
 
     /// A decoded status from the JSON file.
@@ -101,11 +100,19 @@ enum LiveDashboard {
 
     // MARK: - Public Entry Point
 
-    static func run() {
+    /// Runs the tier.
+    /// - Parameter rng: The generator behind the simulated win-rate gains.
+    static func run(using rng: inout some RandomNumberGenerator) {
         setvbuf(stdout, nil, _IONBF, 0)
 
         printIntro()
         waitForEnter()
+
+        // Draw the simulation's random steps up front: the updater runs on another
+        // thread, and an `inout` generator cannot travel there.
+        let winRateGains = (0..<Config.maxUpdates).map { _ in
+            Double.random(in: 0.05...0.12, using: &rng)
+        }
 
         // Install SIGINT handler for clean exit
         installSignalHandler()
@@ -116,7 +123,7 @@ enum LiveDashboard {
 
         // Start background updater thread
         let updaterThread = Thread {
-            runBackgroundUpdater(path: statusPath)
+            runBackgroundUpdater(path: statusPath, winRateGains: winRateGains)
         }
         updaterThread.name = "status-updater"
         updaterThread.start()
@@ -212,7 +219,10 @@ enum LiveDashboard {
             // Atomic rename — either the old file or the new one is visible, never a partial
             _ = rename(tmpPath, path)
         } catch {
-            // Best effort — dashboard handles missing/corrupt files gracefully
+            // Best effort — the dashboard shows "waiting" for a missing file — but say why.
+            #if canImport(os)
+            statusLogger.warning("Could not write status file \(tmpPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            #endif
         }
     }
 
@@ -220,7 +230,7 @@ enum LiveDashboard {
 
     /// Simulates a pipeline progressing through phases.
     /// Runs on a background thread and updates the JSON file every second.
-    private static func runBackgroundUpdater(path: String) {
+    private static func runBackgroundUpdater(path: String, winRateGains: [Double]) {
         var phase = Phase.generating
         var gamesPlayed = 0
         let gamesTotal = 500
@@ -251,7 +261,7 @@ enum LiveDashboard {
             case .training:
                 epoch = min(epoch + 1, epochsTotal)
                 loss = max(0.12, loss * 0.65)
-                winRate = min(winRate + Double.random(in: 0.05...0.12), 0.89)
+                winRate = min(winRate + winRateGains[tick], 0.89)
                 if epoch >= epochsTotal {
                     phase = .evaluating
                 }
@@ -327,7 +337,16 @@ enum LiveDashboard {
         guard let data = FileManager.default.contents(atPath: path) else {
             return nil
         }
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        let parsed: Any
+        do {
+            parsed = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            #if canImport(os)
+            statusLogger.warning("Unreadable status file \(path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            #endif
+            return nil
+        }
+        guard let json = parsed as? [String: Any] else {
             return nil
         }
         guard let phase = json["phase"] as? String,
@@ -424,7 +443,8 @@ enum LiveDashboard {
         buf.appendLine(boxRow("", width: width))
 
         // Win rate with color coding
-        let winPct = Int((status.winRate * 100).rounded())
+        let winRate = status.winRate
+        let winPct = winRate >= -1e12 && winRate <= 1e12 ? Int((winRate * 100).rounded()) : 0
         let winColor = winRateColor(for: winPct)
         let winGauge = InlineGauge.render(
             current: winPct,
@@ -524,6 +544,8 @@ enum LiveDashboard {
 
     /// Formats a Double to two decimal places without locale sensitivity.
     private static func formatTwoDecimal(_ value: Double) -> String {
+        // NaN, infinities and huge magnitudes have no two-decimal form; write them as Swift does.
+        guard abs(value) < 1e15 else { return "\(value)" }
         let rounded = (value * 100).rounded() / 100
         let intPart = Int(rounded)
         let fracPart = Int(((rounded - Double(intPart)) * 100).rounded())

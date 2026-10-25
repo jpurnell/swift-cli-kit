@@ -34,6 +34,14 @@ import SwiftCLIKit
 /// interface unless `host` names another address, and ``SSHConfiguration`` cannot be
 /// created without an ``SSHConfiguration/AuthMode``. The mode is enforced: clients are
 /// admitted only as ``SSHConfiguration/authMode`` allows.
+///
+/// ## Transport
+/// Key exchange is classical — curve25519 and the NIST curves — because that is all
+/// swift-nio-ssh offers, and its key exchange is not pluggable (0.15.0, checked 2026-10-24).
+/// Nothing here is post-quantum: a session recorded today, and any password typed into it,
+/// could be decrypted by a future quantum computer. OpenSSH 10.1+ clients warn about this on
+/// every connection. Where it matters, put the app behind OpenSSH or TLS, which already
+/// negotiate hybrid post-quantum key exchange.
 public struct SSHServer: Sendable {
     #if canImport(os)
     private static let logger = Logger(subsystem: "com.swiftclikit", category: "SSHServer")
@@ -76,7 +84,7 @@ public struct SSHServer: Sendable {
         /// A file that cannot be used stops ``SSHServer/start(sessionHandler:)`` with a
         /// ``SSHServer/HostKeyError`` before the server listens. It never falls back to an
         /// ephemeral key.
-        case filePath(String) // LIVE: public API
+        case filePath(String)
     }
 
     /// Creates an SSH server with the given parameters.
@@ -157,11 +165,17 @@ public struct SSHServer: Sendable {
         sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
     ) async throws -> any Channel {
         let hostKey = try hostKeySource.privateKey()
-        let authDelegate = SSHAuthenticator(mode: configuration.authMode)
+        let mode = configuration.authMode
+        let maxAttempts = configuration.maxAuthAttempts
 
         let bootstrap = ServerBootstrap(group: group)
             .childChannelInitializer { channel in
-                channel.eventLoop.makeCompletedFuture {
+                // One authenticator per connection: it remembers whom it admitted, and every
+                // session channel on the connection is that client's.
+                let authDelegate = SSHAuthenticator(
+                    mode: mode, maxAttempts: maxAttempts, disconnect: { channel.close(promise: nil) }
+                )
+                return channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(
                         NIOSSHHandler(
                             role: .server(
@@ -182,6 +196,8 @@ public struct SSHServer: Sendable {
                                     try childChannel.pipeline.syncOperations.addHandler(
                                         SSHSessionChannelHandler(
                                             remoteAddress: remoteAddress,
+                                            clientIdentity: authDelegate.admitted,
+                                            verification: authDelegate.attachment,
                                             sessionHandler: sessionHandler
                                         )
                                     )
@@ -205,14 +221,51 @@ public struct SSHServer: Sendable {
 ///   accepts, and nothing else.
 /// - ``SSHConfiguration/AuthMode/publicKey`` admits a public-key request, and nothing else.
 ///   NIOSSH has verified the client's signature before the request arrives here.
+///
+/// One exists per connection. It records the identity it admitted, which the connection's
+/// session channels carry as ``SSHSession/clientIdentity``, and it counts password and
+/// public-key attempts: once ``SSHConfiguration/maxAuthAttempts`` have failed it closes the
+/// connection, and refuses anything else without consulting the validator.
 final class SSHAuthenticator: NIOSSHServerUserAuthenticationDelegate, Sendable {
     /// The mode this authenticator enforces.
     let mode: SSHConfiguration.AuthMode
+    /// The identity admitted on this connection, once one has been.
+    private let admittedIdentity: LockedState<SSHClientIdentity?> = LockedState(nil)
+    /// Attempts allowed before the connection is closed.
+    let maxAttempts: Int
+    /// Attempts started so far, counted on arrival so that parallel requests can't overrun the cap.
+    private let attempts = LockedState(0)
+    /// Attempts that have failed so far.
+    private let failures = LockedState(0)
+    /// Closes the connection.
+    private let disconnect: @Sendable () -> Void
+
+    /// What a verifier attached when it admitted this connection.
+    private let verifierAttachment: LockedState<SendableBox?> = LockedState(nil)
+
+    /// What a verifier attached when it admitted this connection; `nil` otherwise.
+    var attachment: (any Sendable)? {
+        verifierAttachment.withLock { $0?.value }
+    }
+
+    /// Who this connection's client was admitted as; `nil` until a request succeeds.
+    var admitted: SSHClientIdentity? {
+        admittedIdentity.withLock { $0 }
+    }
 
     /// Creates an authenticator for the given mode.
-    /// - Parameter mode: The authentication mode to enforce.
-    init(mode: SSHConfiguration.AuthMode) {
+    /// - Parameters:
+    ///   - mode: The authentication mode to enforce.
+    ///   - maxAttempts: Attempts allowed before the connection is closed. Defaults to 6.
+    ///   - disconnect: Closes the connection. Defaults to doing nothing, for tests of the mode alone.
+    init(
+        mode: SSHConfiguration.AuthMode,
+        maxAttempts: Int = 6,
+        disconnect: @escaping @Sendable () -> Void = {}
+    ) {
         self.mode = mode
+        self.maxAttempts = maxAttempts
+        self.disconnect = disconnect
     }
 
     /// The methods offered to a client: only those the mode can admit.
@@ -221,6 +274,11 @@ final class SSHAuthenticator: NIOSSHServerUserAuthenticationDelegate, Sendable {
         case .none: return .all
         case .password: return .password
         case .publicKey: return .publicKey
+        case .verifier(let verifier):
+            var methods: NIOSSHAvailableUserAuthenticationMethods = []
+            if verifier.methods.contains(.password) { methods.insert(.password) }
+            if verifier.methods.contains(.publicKey) { methods.insert(.publicKey) }
+            return methods
         }
     }
 
@@ -237,14 +295,117 @@ final class SSHAuthenticator: NIOSSHServerUserAuthenticationDelegate, Sendable {
             return true
         case (.password, _), (.publicKey, _):
             return false
+        case (.verifier, _):
+            // Decided asynchronously, in `requestReceived`; never synchronously here.
+            return false
         }
     }
 
     /// Answers an authentication request with the mode's decision.
+    ///
+    /// A password validator runs on `NIOThreadPool.singleton`, never on the connection's event
+    /// loop: a validator worth having runs a deliberately slow KDF, and on the loop it would stall
+    /// every other connection the loop serves. If the pool can't take the work, the answer is a
+    /// refusal.
     func requestReceived(
         request: NIOSSHUserAuthenticationRequest,
         responsePromise: EventLoopPromise<NIOSSHUserAuthenticationOutcome>
     ) {
-        responsePromise.succeed(admits(request) ? .success : .failure)
+        guard beginAttempt(request) else {
+            responsePromise.succeed(.failure)
+            disconnect()
+            return
+        }
+        if case .verifier(let verifier) = mode {
+            verify(request, with: verifier, promise: responsePromise)
+            return
+        }
+        guard case .password(let validator) = mode, case .password(let offered) = request.request else {
+            answer(request, admitted: admits(request), promise: responsePromise)
+            return
+        }
+        let username = request.username
+        let password = offered.password
+        NIOThreadPool.singleton
+            .runIfActive(eventLoop: responsePromise.futureResult.eventLoop) {
+                validator(username, password)
+            }
+            .whenComplete { result in
+                switch result {
+                case .success(let admitted):
+                    self.answer(request, admitted: admitted, promise: responsePromise)
+                case .failure:
+                    self.answer(request, admitted: false, promise: responsePromise)
+                }
+            }
     }
+
+    /// Hands an attempt to an asynchronous verifier, off the event loop, and answers NIOSSH
+    /// when it decides. A method the verifier didn't name is refused without asking it.
+    private func verify(
+        _ request: NIOSSHUserAuthenticationRequest,
+        with verifier: any SSHClientVerifier,
+        promise: EventLoopPromise<NIOSSHUserAuthenticationOutcome>
+    ) {
+        let attempt: SSHAuthenticationAttempt
+        switch request.request {
+        case .password(let offered) where verifier.methods.contains(.password):
+            attempt = SSHAuthenticationAttempt(username: request.username, evidence: .password, password: offered.password)
+        case .publicKey(let offered) where verifier.methods.contains(.publicKey):
+            attempt = SSHAuthenticationAttempt(username: request.username, evidence: .init(offered.publicKey))
+        case .none, .password, .publicKey, .hostBased:
+            answer(request, admitted: false, promise: promise)
+            return
+        }
+        // Collapsed to one @Sendable closure so the task captures a single value.
+        let decide: @Sendable () async -> Void = {
+            let verdict = await verifier.verify(attempt)
+            if verdict.admits, let value = verdict.attachment {
+                self.verifierAttachment.withLock { $0 = SendableBox(value: value) }
+            }
+            self.answer(request, admitted: verdict.admits, promise: promise)
+        }
+        Task { await decide() }
+    }
+
+    /// Whether a request is a real attempt. The `none` probe a client sends first is not.
+    private func counts(_ request: NIOSSHUserAuthenticationRequest) -> Bool {
+        if case .none = request.request { return false }
+        return true
+    }
+
+    /// Counts an attempt as it arrives.
+    /// - Returns: `false` when the cap has already been reached and the request must be refused
+    ///   unexamined.
+    private func beginAttempt(_ request: NIOSSHUserAuthenticationRequest) -> Bool {
+        guard counts(request) else { return true }
+        return attempts.withLock { started -> Bool in
+            guard started < maxAttempts else { return false }
+            started += 1
+            return true
+        }
+    }
+
+    /// Records the identity if `admitted`, then completes NIOSSH's promise.
+    private func answer(
+        _ request: NIOSSHUserAuthenticationRequest,
+        admitted: Bool,
+        promise: EventLoopPromise<NIOSSHUserAuthenticationOutcome>
+    ) {
+        guard admitted else {
+            promise.succeed(.failure)
+            if counts(request), failures.withLock({ $0 += 1; return $0 }) >= maxAttempts {
+                disconnect()
+            }
+            return
+        }
+        admittedIdentity.withLock { $0 = SSHClientIdentity(admitted: request) }
+        promise.succeed(.success)
+    }
+}
+
+/// Holds an existential so it can sit in a ``LockedState``, whose state must be `Sendable`.
+struct SendableBox: Sendable {
+    /// The held value.
+    let value: any Sendable
 }

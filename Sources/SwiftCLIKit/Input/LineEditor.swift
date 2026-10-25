@@ -51,6 +51,15 @@ public struct LineEditor: Sendable {
             cursorPosition += 1
             return .editing
 
+        case .paste(let pasted):
+            // Count the cursor from the joined text: a paste that begins with a
+            // combining mark merges into the character before it.
+            let index = text.index(text.startIndex, offsetBy: cursorPosition)
+            let head = String(text[..<index]) + pasted
+            text = head + String(text[index...])
+            cursorPosition = min(head.count, text.count)
+            return .editing
+
         case .enter:
             return .completed(text)
 

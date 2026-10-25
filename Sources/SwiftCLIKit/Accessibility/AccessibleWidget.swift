@@ -8,5 +8,5 @@
 /// their current state for screen reader announcement.
 public protocol AccessibleWidget {
     /// An accessibility label describing the widget's current state.
-    var accessibilityLabel: AccessibilityLabel { get } // LIVE: public API
+    var accessibilityLabel: AccessibilityLabel { get }
 }

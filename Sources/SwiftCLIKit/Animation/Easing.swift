@@ -70,6 +70,8 @@ public enum Easing: Sendable, Equatable {
 
     /// Solve a cubic bezier curve using Newton-Raphson iteration.
     /// The curve passes through (0,0) and (1,1) with control points (x1,y1) and (x2,y2).
+    /// - Returns: The eased value, or 0.0 if `t` is not above zero (NaN included),
+    ///   or 1.0 if `t` is 1 or more.
     private func solveCubicBezier(t: Double, x1: Double, y1: Double, x2: Double, y2: Double) -> Double {
         guard t > 0.0 else { return 0.0 }
         guard t < 1.0 else { return 1.0 }
@@ -106,6 +108,9 @@ public enum Easing: Sendable, Equatable {
     }
 
     /// Critically-damped spring approximation using second-order ODE solution.
+    /// - Returns: The eased value; `t` unchanged if mass, stiffness or the derived
+    ///   frequency is not positive; 0.0 if `t` is not above zero (NaN included);
+    ///   1.0 if `t` is 1 or more.
     private func solveSpring(t: Double, mass: Double, stiffness: Double, damping: Double) -> Double {
         guard mass > 0.0 else { return t }
         guard stiffness > 0.0 else { return t }
@@ -134,6 +139,8 @@ public enum Easing: Sendable, Equatable {
     }
 
     /// Bounce easing that simulates a ball bouncing and settling.
+    /// - Returns: The eased value, or 0.0 if `t` is not above zero (NaN included),
+    ///   or 1.0 if `t` is 1 or more.
     private func solveBounce(_ t: Double) -> Double {
         guard t > 0.0 else { return 0.0 }
         guard t < 1.0 else { return 1.0 }

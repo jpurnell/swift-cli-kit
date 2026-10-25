@@ -87,65 +87,24 @@ public struct TextField: Sendable {
     ///   - focused: Whether this field currently has focus.
     public func render(into frame: inout Frame, focused: Bool) {
         let activeStyle = focused ? focusedStyle : style
+        guard var content = InputFieldChrome.draw(label: label, style: activeStyle, into: &frame) else { return }
+        let width = content.rect.width
 
-        // Draw label
-        if !label.isEmpty {
-            frame.writeText(
-                label,
+        if editor.text.isEmpty {
+            // Show placeholder in dim style
+            content.writeText(
+                String(placeholder.prefix(width)),
+                x: 0, y: 0,
+                fg: activeStyle.fg, bg: activeStyle.bg,
+                attributes: .dim
+            )
+        } else {
+            content.writeText(
+                String(editor.text.prefix(width)),
                 x: 0, y: 0,
                 fg: activeStyle.fg, bg: activeStyle.bg,
                 attributes: activeStyle.attributes
             )
         }
-
-        let labelOffset = label.isEmpty ? 0 : label.count + 1
-        let fieldWidth = max(frame.rect.width - labelOffset, 0)
-        guard fieldWidth > 2 else { return }
-
-        // Draw border
-        let box = BoxDrawing.unicode
-        frame.writeText(box.topLeft, x: labelOffset, y: 0,
-                        fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-        for col in 1..<(fieldWidth - 1) {
-            frame.writeText(box.horizontal, x: labelOffset + col, y: 0,
-                            fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-        }
-        frame.writeText(box.topRight, x: labelOffset + fieldWidth - 1, y: 0,
-                        fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-
-        // Content row
-        frame.writeText(box.vertical, x: labelOffset, y: 1,
-                        fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-        let contentWidth = fieldWidth - 2
-        if editor.text.isEmpty {
-            // Show placeholder in dim style
-            let displayPlaceholder = String(placeholder.prefix(contentWidth))
-            frame.writeText(
-                displayPlaceholder,
-                x: labelOffset + 1, y: 1,
-                fg: activeStyle.fg, bg: activeStyle.bg,
-                attributes: .dim
-            )
-        } else {
-            let displayText = String(editor.text.prefix(contentWidth))
-            frame.writeText(
-                displayText,
-                x: labelOffset + 1, y: 1,
-                fg: activeStyle.fg, bg: activeStyle.bg,
-                attributes: activeStyle.attributes
-            )
-        }
-        frame.writeText(box.vertical, x: labelOffset + fieldWidth - 1, y: 1,
-                        fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-
-        // Bottom border
-        frame.writeText(box.bottomLeft, x: labelOffset, y: 2,
-                        fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-        for col in 1..<(fieldWidth - 1) {
-            frame.writeText(box.horizontal, x: labelOffset + col, y: 2,
-                            fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
-        }
-        frame.writeText(box.bottomRight, x: labelOffset + fieldWidth - 1, y: 2,
-                        fg: activeStyle.fg, bg: activeStyle.bg, attributes: activeStyle.attributes)
     }
 }

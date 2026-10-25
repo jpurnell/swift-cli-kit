@@ -25,13 +25,15 @@ public enum Formatting: Sendable {
     /// - 60 s to < 3600 s: `"Xm Ys"`
     /// - 3600 s and above: `"Xh Ym"` (seconds dropped)
     ///
-    /// Negative and zero values return `"< 1m"`.
+    /// Negative and zero values return `"< 1m"`, as does NaN. Values too large
+    /// for an `Int` count of seconds (including infinity) are capped at 9e18 s.
     ///
     /// - Parameter seconds: The elapsed time in seconds.
     /// - Returns: A human-readable duration string.
     public static func elapsed(_ seconds: Double) -> String {
         guard seconds >= 60 else { return "< 1m" }
-        let total = Int(seconds)
+        let capped = Swift.min(seconds, 9e18)
+        let total = Int(capped)
         let h = total / 3600
         let m = (total % 3600) / 60
         let s = total % 60
@@ -50,13 +52,15 @@ public enum Formatting: Sendable {
     /// - 60 s to < 3600 s: `"Xm Ys"`
     /// - 3600 s and above: `"Xh Ym Zs"`
     ///
-    /// Negative values return `"< 1s"`.
+    /// Negative values return `"< 1s"`, as does NaN. Values too large for an
+    /// `Int` count of seconds (including infinity) are capped at 9e18 s.
     ///
     /// - Parameter interval: The duration in seconds.
     /// - Returns: A human-readable duration string.
     public static func duration(_ interval: TimeInterval) -> String {
-        let totalSeconds = Int(interval)
-        guard totalSeconds >= 1 else { return "< 1s" }
+        guard interval >= 1 else { return "< 1s" }
+        let capped = Swift.min(interval, 9e18)
+        let totalSeconds = Int(capped)
         let h = totalSeconds / 3600
         let m = (totalSeconds % 3600) / 60
         let s = totalSeconds % 60
@@ -144,7 +148,8 @@ public enum Formatting: Sendable {
 
     /// Formats a rate value with one decimal place and a unit suffix.
     ///
-    /// Negative values are clamped to `0.0`.
+    /// Negative values are clamped to `0.0`. NaN and infinity are written as
+    /// `nan` and `inf`.
     ///
     /// - Parameters:
     ///   - value: The rate value.
@@ -158,7 +163,12 @@ public enum Formatting: Sendable {
     // MARK: - Private
 
     /// Formats a Double to exactly one decimal place without locale sensitivity.
+    ///
+    /// - Parameter value: The value to format.
+    /// - Returns: The value to one decimal place, or Swift's own description
+    ///   (`nan`, `inf`, `1e+300`) when it is NaN or its magnitude is 9e17 or more.
     private static func formatOneDecimal(_ value: Double) -> String {
+        guard abs(value) < 9e17 else { return "\(value)" }
         let rounded = (value * 10).rounded() / 10
         let intPart = Int(rounded)
         let fracPart = Int(((rounded - Double(intPart)) * 10).rounded())

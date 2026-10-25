@@ -517,6 +517,8 @@ enum HelloTerminal {
 
     /// Converts a hue (0.0-1.0) to RGB. Simple HSV-to-RGB with full saturation and value.
     private static func hueToRGB(_ hue: Double) -> (UInt8, UInt8, UInt8) {
+        // A hue with no sector (NaN, infinite, or absurdly large) is drawn black.
+        guard abs(hue) < 1e15 else { return (0, 0, 0) }
         let h = hue * 6.0
         let sector = Int(h) % 6
         let f = h - Double(Int(h))
@@ -536,16 +538,14 @@ enum HelloTerminal {
         default: rf = 1; gf = 0; bf = q
         }
 
-        return (
-            UInt8(clamping: Int(rf * 255)),
-            UInt8(clamping: Int(gf * 255)),
-            UInt8(clamping: Int(bf * 255))
-        )
+        return (channel(rf), channel(gf), channel(bf))
     }
 
     /// Generates a fire gradient color for parameter t in 0.0...1.0.
     /// Progresses through: black -> dark red -> red -> orange -> yellow -> white.
     private static func fireGradient(_ t: Double) -> (UInt8, UInt8, UInt8) {
+        // NaN is not on the gradient; draw it black rather than letting it fall into the last band.
+        guard !t.isNaN else { return (0, 0, 0) }
         let r: Double
         let g: Double
         let b: Double
@@ -570,10 +570,14 @@ enum HelloTerminal {
             b = local
         }
 
-        return (
-            UInt8(clamping: Int(r * 255)),
-            UInt8(clamping: Int(g * 255)),
-            UInt8(clamping: Int(b * 255))
-        )
+        return (channel(r), channel(g), channel(b))
+    }
+
+    /// A unit-interval intensity as an 8-bit color channel, truncated.
+    /// - Parameter unit: The intensity, nominally `0...1`.
+    /// - Returns: `unit × 255` truncated; below 0 (or NaN) reads as 0, above 1 as 255.
+    private static func channel(_ unit: Double) -> UInt8 {
+        guard unit >= 0, unit <= 1 else { return unit > 1 ? 255 : 0 }
+        return UInt8(unit * 255)
     }
 }

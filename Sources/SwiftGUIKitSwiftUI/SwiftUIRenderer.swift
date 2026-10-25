@@ -54,9 +54,12 @@ public struct SwiftUIRenderer {
             return AnyView(gaugeBar(ratio: clamp01(ratio), label: label, tint: resolver.color(.accent)))
 
         case let .progressBar(current, total, showPercentage, _):
-            let ratio = total > 0 ? clamp01(current / total) : 0
+            let clamped = total > 0 ? clamp01(current / total) : 0
+            // A NaN `current` survives the clamp; show it as no progress.
+            let ratio = clamped.isNaN ? 0 : clamped
+            let percent = ratio >= 0 && ratio <= 1 ? Int(ratio * 100) : 0
             return AnyView(ProgressView(value: ratio) {
-                if showPercentage { Text("\(Int(ratio * 100))%") }
+                if showPercentage { Text("\(percent)%") }
             })
 
         case let .sparkline(data, _, _):

@@ -167,4 +167,49 @@ struct ANSIStringMetricsTests {
         let result = ANSIStringMetrics.elideMiddle(colored, to: 10)
         #expect(result == "BioFee…Kit")
     }
+    // MARK: - plainText: exactly CSI `ESC [ [0-9;]* letter` is removed
+
+    @Test("plainText strips SGR and cursor CSI sequences, keeping the text between them")
+    func plainTextStripsCSI() {
+        #expect(ANSIStringMetrics.plainText("\u{001B}[1;31mred\u{001B}[0m \u{001B}[2Kx\u{001B}[10;5H") == "red x")
+    }
+
+    @Test("plainText strips a parameterless CSI such as ESC [ m")
+    func plainTextStripsParameterlessCSI() {
+        #expect(ANSIStringMetrics.plainText("a\u{001B}[mb") == "ab")
+    }
+
+    @Test("plainText leaves a CSI with a private-mode marker untouched")
+    func plainTextKeepsPrivateModeCSI() {
+        let s = "\u{001B}[?25lhidden"
+        #expect(ANSIStringMetrics.plainText(s) == s)
+    }
+
+    @Test("plainText leaves an unterminated CSI untouched")
+    func plainTextKeepsUnterminatedCSI() {
+        let s = "abc\u{001B}[12;"
+        #expect(ANSIStringMetrics.plainText(s) == s)
+    }
+
+    @Test("plainText leaves a lone ESC and non-CSI escapes untouched")
+    func plainTextKeepsNonCSIEscapes() {
+        let s = "\u{001B}x \u{001B}]52;c;aGk=\u{07} \u{001B}"
+        #expect(ANSIStringMetrics.plainText(s) == s)
+    }
+
+    @Test("plainText resumes after an incomplete CSI and still strips the next one")
+    func plainTextResumesAfterIncompleteCSI() {
+        #expect(ANSIStringMetrics.plainText("\u{001B}[1;\u{001B}[31mz") == "\u{001B}[1;z")
+    }
+
+    @Test("plainText does not treat a non-ASCII letter as a CSI final byte")
+    func plainTextRequiresASCIIFinalByte() {
+        let s = "\u{001B}[1\u{00E9}"
+        #expect(ANSIStringMetrics.plainText(s) == s)
+    }
+
+    @Test("plainText keeps combining marks and emoji around stripped escapes")
+    func plainTextKeepsGraphemes() {
+        #expect(ANSIStringMetrics.plainText("e\u{0301}\u{001B}[0m\u{1F44D}\u{1F3FD}") == "e\u{0301}\u{1F44D}\u{1F3FD}")
+    }
 }

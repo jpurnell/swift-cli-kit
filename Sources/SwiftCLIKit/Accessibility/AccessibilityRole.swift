@@ -4,6 +4,6 @@
 
 /// Semantic roles for accessible widgets, modeled after ARIA roles.
 public enum AccessibilityRole: String, Sendable, CaseIterable {
-    case table, list, tree, button, textField, gauge, menu, tab // LIVE: public API
-    case calendar, progressBar, sparkline, scrollbar, generic // LIVE: public API
+    case table, list, tree, button, textField, gauge, menu, tab
+    case calendar, progressBar, sparkline, scrollbar, generic
 }

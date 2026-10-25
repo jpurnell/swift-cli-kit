@@ -24,13 +24,13 @@ public struct GaugeGeometry: Sendable, Equatable {
     /// Computes gauge geometry.
     /// - Parameters:
     ///   - width: The bar width in columns (values `<= 0` yield empty ranges).
-    ///   - ratio: The fill ratio; clamped to `0...1`.
+    ///   - ratio: The fill ratio; clamped to `0...1`. A NaN ratio fills nothing.
     ///   - labelLength: The label's character count, or `nil` for no label.
     public init(width: Int, ratio: Double, labelLength: Int?) {
         self.width = width
         let w = Swift.max(width, 0)
         let clamped = Swift.min(Swift.max(ratio, 0.0), 1.0)
-        let filled = w > 0 ? Int(Double(w) * clamped) : 0
+        let filled = w > 0 && clamped >= 0 && clamped <= 1 ? Int(Double(w) * clamped) : 0
         self.filledRange = 0..<filled
         self.unfilledRange = filled..<w
         if w > 0, let len = labelLength {

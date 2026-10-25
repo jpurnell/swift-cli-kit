@@ -46,6 +46,19 @@ public enum Key: Sendable, Equatable {
     /// Shift-Tab / Backtab (CSI Z).
     case backtab
 
+    // MARK: - v2.2.0 additions
+    /// Text delivered by a bracketed paste (`ESC [ 200 ~` … `ESC [ 201 ~`), whole.
+    ///
+    /// The payload is the pasted bytes decoded as UTF-8 in one pass, so multi-byte
+    /// characters survive, and newlines, tabs and `ESC` bytes inside the paste are
+    /// content rather than keys. The terminal sends the markers only after
+    /// ``ANSICodes/enableBracketedPaste`` is written.
+    ///
+    /// - Important: A paste is raw input and may be a password from a password
+    ///   manager. Do not log or record `Key` values read while a ``SecureField``
+    ///   has focus — the same holds for ``character(_:)``.
+    case paste(String)
+
     // MARK: - Fallback
     /// An unrecognised byte value.
     case unknown(UInt8)

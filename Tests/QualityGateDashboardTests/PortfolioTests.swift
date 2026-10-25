@@ -67,4 +67,21 @@ struct PortfolioTests {
         let build = try #require(lineIndex(text, containing: "build"))
         #expect(logging < build)
     }
+
+    @Test("a pass rate too large to show as a percentage reads n/a instead of trapping")
+    func unrepresentablePassRate() throws {
+        let json = """
+        { "totalProjects": 1, "passingProjects": 0, "failingProjects": 1, "worstCheckers": [],
+          "projects": [
+            {"projectID": "Huge", "passRate": 1e300, "runCount": 1, "latestPassed": false,
+             "totalOverrides": 0, "checkerPassRates": {"build": 0.25}}
+          ] }
+        """
+        let portfolio = try PortfolioDashboard.portfolio(fromJSON: Data(json.utf8))
+        let huge = try #require(portfolio.projects.first)
+        let text = QualityGateDashboard.renderPlainText(
+            node: PortfolioDashboard.projectScene(huge), width: 52, height: 8)
+        #expect(text.contains("n/a pass"))
+        #expect(text.contains("25%"))
+    }
 }

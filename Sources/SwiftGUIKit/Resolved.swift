@@ -11,8 +11,8 @@ public struct Metric: Sendable, Equatable {
     /// The unit a metric is expressed in.
     public enum Unit: Sendable, Equatable {
         case cells
-        case points          // LIVE: public metric-unit vocabulary
-        case pixels          // LIVE: public metric-unit vocabulary
+        case points
+        case pixels
     }
     /// The scalar value.
     public let value: Int
@@ -52,7 +52,7 @@ public struct ResolvedFont: Sendable, Equatable {
     /// Whether the role uppercases its text.
     public enum CaseTransform: Sendable, Equatable {
         case none
-        case upper           // LIVE: public case-transform vocabulary
+        case upper
     }
     /// Emphasis attributes (bold / dim).
     public var attributes: CellAttributes

@@ -135,6 +135,8 @@ public struct InlineSparkline: Sendable {
         return values.map { value in
             let clamped = Swift.min(Swift.max(value, lo), hi)
             let normalized = Double((clamped - lo) / range)
+            // A NaN point has no height: draw it as the empty block.
+            guard (0.0...1.0).contains(normalized) else { return blocks[0] }
             let index = Int((normalized * Double(maxBlockIndex)).rounded(.down))
             let safeIndex = Swift.min(Swift.max(index, 0), maxBlockIndex)
             return blocks[safeIndex]

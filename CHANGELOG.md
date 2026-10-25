@@ -7,6 +7,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-24
+
+The sign-in seam: who connected over SSH, an asynchronous verifier for an identity layer, and
+the password-path fixes from the sign-in proposal's §3a.
+
+### Added
+
+- **`SSHSession.clientIdentity`**: who the server admitted on the connection, and with what.
+  `SSHClientIdentity` holds the username and its `Evidence`: `none`, `password` (recorded as
+  accepted, never kept), `publicKey(openSSH:)`, or `certificate(_:openSSH:)` with an
+  `SSHCertificateSummary` (key ID, principals, validity window, signing CA). An app can keep its
+  own allow-list, or hand the evidence to an identity layer. `Evidence` is a struct with static
+  members so kinds can be added without breaking an exhaustive `switch`.
+- **`AuthMode.verifier(any SSHClientVerifier)`**, the asynchronous seam for an identity layer.
+  A verifier's `verify(_:)` receives an `SSHAuthenticationAttempt` (username, evidence, and the
+  password for a password attempt, which is never kept and never appears in the attempt's
+  description or `Mirror`), and returns an `SSHVerdict`: `.refuse`, `.admit`, or
+  `.admit(attaching:)`, whose value every session on the connection carries as
+  `SSHSession.verification`. It runs off the event loop, offers only the
+  `SSHVerificationMethods` it names, and its refusals count towards `maxAuthAttempts`. The
+  `.password` closure can't call an async resolver such as SwiftIdentity's `Authenticator`
+  without blocking a thread, and has nowhere to put what it resolved; this can do both.
+- **`SSHConfiguration.maxAuthAttempts`** (default 6, OpenSSH's `MaxAuthTries` default): after
+  that many failed password or public-key attempts the server closes the connection, and an
+  attempt past the cap is refused without reaching the validator. Attempts are counted as they
+  arrive, so parallel requests can't overrun it. The `none` probe doesn't count. This bounds
+  guessing per connection; the per-account limit belongs to the identity layer behind the
+  validator.
+- Each connection now gets its own authenticator, which remembers whom it admitted. Before,
+  one was shared by every connection on the server.
+- **Bracketed paste.** `KeyReader` recognizes `ESC [ 200 ~` … `ESC [ 201 ~` and returns
+  the whole paste as one `Key.paste(String)`. The body is decoded as UTF-8 in one pass, so
+  multi-byte characters survive, and newlines, `ESC` and control bytes inside a paste are
+  content rather than keys; a paste spanning several reads still arrives whole. Enable it
+  with the new `ANSICodes.enableBracketedPaste` (`ESC[?2004h`) and turn it off with
+  `ANSICodes.disableBracketedPaste` before restoring the terminal. (Auth proposal §3a fix 3,
+  rows P11a/P11b.)
+- `KeyReader.init(terminal:maxPasteBytes:)`, `KeyReader.maxPasteBytes` and
+  `KeyReader.defaultMaxPasteBytes` (1 MiB). A paste over the cap, or one that is not valid
+  UTF-8, is read through its end marker and refused as `.unknown(0x1B)` — never truncated
+  and never repaired with U+FFFD. A paste cut off by EOF returns `nil`. The existing
+  `KeyReader(terminal:)` call is unchanged.
+- **`SecureField`**, a single-line input for passwords and other secrets, with
+  `SecureFieldResult`. Each character renders as `mask` (default `•`; `nil` draws nothing)
+  until revealed — `toggleReveal()`, `setRevealed(_:)`, or a caller-bound `revealKey`
+  (P12). Editing works on whole `Character`s, widths come from `UnicodeWidth`, there is no
+  length cap and nothing is truncated (P7), and a `Key.paste` is inserted whole (P11a/b).
+  `SecureFieldResult` carries no text. `description`, `debugDescription`, `Mirror` and
+  `dump` show neither the secret nor its length; `consume()` returns the value and empties
+  the field, `clear()` discards it.
+- `LineEditor` (and so `TextField`) inserts a `Key.paste` at the cursor, and `TextArea` inserts
+  it whole across lines: CR, LF and CRLF in a paste all become line breaks, since terminals
+  usually send a pasted newline as CR.
+
+### Changed
+
+- **Source-level: `SSHConfiguration.AuthMode` has a new case, `.verifier`.** A `switch` over
+  `AuthMode` with no `default:` stops compiling until it handles it, as with `Key.paste`
+  below. Both are cases callers rarely switch over; SemVer would put them in a major release,
+  and this release takes the 2.x line's precedent of adding enum cases in a minor one.
+- **swift-nio-ssh 0.15.0 is the minimum** (was 0.9.0; 0.13.0 was resolved). 0.14.0 fixes a crash
+  on a bare LF as the client's first byte, 0.14.1 rejects oversized ECDSA signature integers, and
+  0.15.0 bounds buffered state and the number of authentication messages a client may send.
+- **Source-level: `Key` has a new case, `.paste(String)`.** `Key` is a public enum and the
+  package does not build with library evolution, so a `switch` over `Key` with no
+  `default:` stops compiling until it handles `.paste`. Every switch in
+  this package already had a `default:`; add one, or a `.paste` case, to yours. Binary and
+  behaviour are otherwise unchanged: a terminal sends paste markers only after
+  `enableBracketedPaste` is written.
+- `TextField` and `SecureField` share one internal drawing routine for the label and box.
+  `TextField` content now draws into a clipped area, so wide text can no longer overwrite
+  the box's right border, and the box starts after the label's display width rather than
+  its `Character` count (they differ only for wide labels, such as CJK).
+
+### Fixed
+
+- The guide's key-reading example matched `.f(let n)`, which doesn't exist; it's
+  `.functionKey(let n)`.
+- **A password validator no longer runs on the connection's event loop.** It ran inline, so a
+  validator using a strong KDF (600,000-round PBKDF2, Argon2id) stalled every other connection
+  that loop served for as long as it worked, which pushed callers towards weak ones. It now runs
+  on `NIOThreadPool.singleton`, and NIOSSH is answered when it finishes. The `.password` closure's
+  signature is unchanged. If the pool can't take the work, the attempt is refused.
+
+### Known limitations
+
+- **SSH key exchange is not post-quantum**, and the docs now say so (`SSHServer`, README, guide).
+  swift-nio-ssh offers only classical key exchange and doesn't let one be added (0.15.0); a
+  recorded session could be decrypted later, passwords included. Put the app behind OpenSSH or
+  TLS where that matters. Post-quantum key exchange is planned for 2.3.0.
+- **SSH certificates can't be used to sign in yet.** swift-nio-ssh's server parses user
+  authentication only for plain Ed25519 and ECDSA keys and refuses a certificate before
+  SwiftCLIKit sees it (0.15.0 and main, checked 2026-10-24). Certificate evidence is in the API
+  so it arrives without a change once upstream accepts them; a test pins today's refusal.
+
+### Quality
+
+- **The quality gate's unvalidated suppressions are gone: 43 → 0 suppressed, 21 → 0
+  baselined, 3 → 0 config overrides.** What remains is 6 acknowledgements whose reasons the gate
+  validates (`// Justification:`, `// SAFETY:`, `// silent:`).
+- **Floating-point values no longer trap when converted to `Int`.** The 21 baselined findings
+  were real crashes reachable from public API with a NaN, an infinity or a value past `Int`'s
+  range: `TerminalFormatter.formatNumber` in a narrow column, `Formatting.duration` /
+  `elapsed` / `rate`, `GaugeGeometry`, `SparklineGeometry`, `InlineSparkline` and
+  `BarChartRenderer` given a NaN point, a bar labelled with a NaN or infinite value, and the
+  dashboard's pass-rate percentage. A NaN point now draws empty, a duration is capped at
+  9e18 s, and a value with no short form is written as Swift writes it (`nan`, `inf`,
+  `1e+300`). Output for finite, in-range values is unchanged.
+- **Failures that `try?` discarded are now logged** (os.Logger, privacy-annotated): a snapshot
+  golden file that can't be written, a session record that can't be decoded or encoded.
+  `ANSIStringMetrics` strips escapes with a scanner rather than an `NSRegularExpression`, so
+  there is no `try?` left there; it removes exactly what the regex did.
+- **34 `// LIVE:` markers removed.** 32 hid nothing; the other two hid dead internal code
+  (`Color.nearestANSI8`, `CSSSyntaxTokenizer.atRules`), now deleted.
+- **The examples target is audited by everything except one rule.** Its unguarded
+  conversions, unseeded randomness (the generator is now injected from `@main`), silent
+  `catch`/`try?` and dead members are fixed. It stays in `excludePatterns` only because its
+  `print()` calls are terminal output and `logging.print-statement` has no per-target CLI
+  mode.
+
+
 ## [2.1.3] - 2026-10-20
 
 A security fix, released as a patch. It adds one public type, `SSHServer.HostKeyError`, which

@@ -57,9 +57,12 @@ extension AnimatedValue where T: BinaryFloatingPoint {
 extension AnimatedValue where T == Int {
     /// Current interpolated value (rounded) based on animation progress.
     /// - Parameter now: The current time.
-    /// - Returns: An integer between `from` and `to` (inclusive).
+    /// - Returns: An integer between `from` and `to` (inclusive), or `from` if the
+    ///   interpolated displacement is not a number an `Int` can hold.
     public func value(at now: ContinuousClock.Instant) -> Int {
         let progress = animation.progress(at: now)
-        return from + Int((Double(to - from) * progress).rounded())
+        let displacement = Double(to - from) * progress
+        guard abs(displacement) < 9e18 else { return from }
+        return from + Int(displacement.rounded())
     }
 }

@@ -17,13 +17,13 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.1.0"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.2.0"),
 ]
 ```
 
 `jpurnell/swift-cli-kit` is the public repository; each release lands there as one
-clean-history commit with its tag. `2.1.0` is the first release whose floor is macOS 14;
-`2.0.0` needs macOS 15.
+clean-history commit with its tag. `2.2.0` adds `SSHSession.clientIdentity` and
+`AuthMode.verifier`; `2.1.0` is the first release whose floor is macOS 14; `2.0.0` needs macOS 15.
 
 Then depend on the products you need — `SwiftCLIKit` for the terminal layer,
 `SwiftGUIKit` for the cross-surface scene graph:
@@ -72,6 +72,18 @@ let server = SSHServer(
 Pass `host: "0.0.0.0"` to accept connections from other machines. `authMode: .none` admits
 every client and is for development on loopback. Upgrading from 1.x: see the migration table
 in [CHANGELOG.md](CHANGELOG.md).
+
+**SSH here is not post-quantum.** swift-nio-ssh negotiates only classical key exchange
+(curve25519 and the NIST curves; checked at 0.15.0, 2026-10-24). A session recorded today,
+including any password typed into it, could be decrypted by a future quantum computer, and
+OpenSSH 10.1+ clients warn about this on every connection. If that matters for your
+deployment, put the app behind OpenSSH or behind TLS, both of which already negotiate hybrid
+post-quantum key exchange.
+
+`session.clientIdentity` says who was admitted and with what: the username and a password, a
+public key in OpenSSH form, or nothing. `SSHConfiguration.maxAuthAttempts` (default 6) closes a
+connection that keeps guessing, and a `.password` validator runs on a thread pool, so a slow,
+strong KDF doesn't stall other connections.
 
 ## Documentation
 

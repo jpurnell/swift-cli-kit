@@ -48,7 +48,8 @@ public struct Animation: Sendable {
 
     /// Raw linear progress (0.0 to 1.0) without easing applied.
     /// - Parameter now: The current time.
-    /// - Returns: Linear progress, or 0.0 if not started or in delay.
+    /// - Returns: Linear progress, or 0.0 if not started or in delay, or 1.0 if the
+    ///   duration is zero (or not a positive number of seconds).
     public func linearProgress(at now: ContinuousClock.Instant) -> Double {
         guard let startTime else { return 0.0 }
 

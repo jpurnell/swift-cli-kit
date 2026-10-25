@@ -203,11 +203,31 @@ while let key = reader.readKey() {
     case .backspace:          print("Backspace")
     case .tab:                print("Tab")
     case .backtab:            print("Shift-Tab")
-    case .f(let n):           print("F\(n)")
+    case .functionKey(let n): print("F\(n)")
     default:                  print("\(key)")
     }
 }
 ```
+
+#### Bracketed paste
+
+Write `ANSICodes.enableBracketedPaste` and the terminal wraps pasted text in
+`ESC [ 200 ~` … `ESC [ 201 ~`. `KeyReader` returns the whole paste as one
+`Key.paste(String)` — Unicode intact, newlines and `ESC` bytes as content, however
+many reads it spans — instead of a burst of keystrokes that could press Enter.
+
+```swift
+print(ANSICodes.enableBracketedPaste, terminator: "")
+defer { print(ANSICodes.disableBracketedPaste, terminator: "") }
+
+if case .paste(let text) = reader.readKey() {
+    print("pasted \(text.count) characters")
+}
+```
+
+A paste larger than `maxPasteBytes` (default 1 MiB), or not valid UTF-8, is refused
+whole as `.unknown(0x1B)`; it is never truncated. `LineEditor` and `TextField` insert
+a paste at the cursor.
 
 ### Mouse Events
 
@@ -789,6 +809,33 @@ case .unhandled: break
 }
 ```
 
+#### SecureField
+
+For passwords and other secrets. Nothing the user types or pastes is drawn: each
+character shows as `mask` (default `•`, or nothing with `mask: nil`) until the user asks
+to see it. Editing is grapheme-correct, there is no length limit, and a bracketed paste
+from a password manager arrives whole.
+
+```swift
+var field = SecureField(label: "Password:")
+field.revealKey = .functionKey(2)      // F2 shows / hides the password
+
+switch field.handleKey(key) {
+case .submitted:
+    let password = field.consume()     // returns the value and empties the field
+    verify(password)
+case .revealChanged(let shown): print(shown ? "shown" : "hidden")
+case .changed, .cancelled, .unhandled: break
+}
+field.render(into: &frame, focused: true)
+```
+
+`SecureFieldResult` never carries the text, and `description`, `debugDescription`,
+`Mirror` and `dump` show neither the secret nor its length. Take the value once with
+`consume()`, or discard it with `clear()`. Swift cannot promise freed `String` memory
+is zeroed, so treat these as dropping the field's copy, not scrubbing every copy — and
+do not log the `Key` values that feed the field.
+
 #### Form
 
 ```swift
@@ -1173,6 +1220,57 @@ key (any key), and `.none` admits everyone and logs a warning at startup.
 
 The server binds `127.0.0.1` unless `host` says otherwise. Publishing it is two decisions,
 each written down: a `host` other machines can reach, and an `authMode` that is not `.none`.
+
+**Who connected.** `session.clientIdentity` is the identity the connection was admitted with:
+`username` and `evidence`, whose `kind` is `"none"`, `"password"`, `"public-key"` or
+`"certificate"`. A password is recorded as accepted and never kept; a key comes as an OpenSSH
+line you can compare against an allow-list:
+
+```swift
+try await server.start { backend, session in
+    guard let key = session.clientIdentity?.evidence.openSSHPublicKey, allowed.contains(key) else {
+        backend.write("Not allowed.\r\n")
+        return
+    }
+    try await MyApp().run(on: backend)
+}
+```
+
+Certificate evidence is in the API, but swift-nio-ssh's server doesn't accept certificate
+sign-ins yet, so today it never appears.
+
+**An identity layer.** `.verifier(any SSHClientVerifier)` decides each attempt asynchronously
+and can attach what it resolved, which arrives as `session.verification`:
+
+```swift
+struct Roster: SSHClientVerifier {
+    let people: PeopleStore                          // your async lookup
+    var methods: SSHVerificationMethods { [.password, .publicKey] }
+
+    func verify(_ attempt: SSHAuthenticationAttempt) async -> SSHVerdict {
+        guard let person = await people.match(attempt) else { return .refuse }
+        return .admit(attaching: person)
+    }
+}
+
+try await server.start { backend, session in
+    guard let person = session.verification as? Person else { return }
+    try await MyApp(person: person).run(on: backend)
+}
+```
+
+The password is in the attempt only so the verifier can check it; it's never kept or printed.
+
+**Guessing.** `SSHConfiguration(maxAuthAttempts:)` (default 6, as OpenSSH's `MaxAuthTries`)
+closes a connection after that many failed attempts. It bounds one connection; a per-account
+limit belongs to the identity layer behind your validator. The `.password` closure runs on a
+thread pool, not the event loop, so it may run a deliberately slow KDF.
+
+**Not post-quantum.** Key exchange is classical (curve25519, NIST curves) because that's all
+swift-nio-ssh offers, and its key exchange isn't pluggable (0.15.0). A recording of a session
+could be decrypted later by a quantum computer, passwords included, and OpenSSH 10.1+ clients
+warn on every connection. Where that matters, front the app with OpenSSH or TLS, which already
+negotiate hybrid post-quantum key exchange.
 
 Host key sources: `.generateEphemeral`, `.filePath(String)`. The host key is how clients
 recognize the server, so anything reachable from other machines should load one from a file:

@@ -14,11 +14,14 @@ struct Examples {
             return
         }
 
+        // The one place the program names a real generator; every tier that
+        // simulates data takes it as a parameter, so a seeded one can replace it.
+        var rng = SystemRandomNumberGenerator()
         switch tier {
         case 1: HelloTerminal.run()
-        case 2: ProgressSpinner.run()
-        case 3: SystemMonitor.run()
-        case 4: LiveDashboard.run()
+        case 2: ProgressSpinner.run(using: &rng)
+        case 3: SystemMonitor.run(using: &rng)
+        case 4: LiveDashboard.run(using: &rng)
         default: printUsage()
         }
     }

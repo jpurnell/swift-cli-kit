@@ -1,12 +1,12 @@
+# The examples executable is still excluded, for one reason only: its ~316
+# print() calls are the program's terminal output, and logging.print-statement
+# has no per-target notion of a CLI (projectType is repo-wide). Every other
+# finding the exclusion used to hide has been fixed; run with this block removed
+# to confirm only logging.print-statement / no-os-logger-import remain.
 excludePatterns:
   - "swiftclikit-examples"
 
 docTarget: SwiftCLIKit
-
-overrides:
-  swift-version-minimum: info
-  logging.catch-without-logging: info
-  stochastic-no-seed: info
 
 consistency:
   corpusPath: ../org-judgement-corpus

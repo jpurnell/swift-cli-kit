@@ -7,15 +7,15 @@ import Foundation
 /// The outcome of a key press handled by a ``Form``.
 public enum FormResult: Sendable, Equatable {
     /// A field's value changed.
-    case fieldChanged(fieldID: String, value: String) // LIVE: public API
+    case fieldChanged(fieldID: String, value: String)
     /// The form was submitted (Enter on last field).
-    case submitted // LIVE: public API
+    case submitted
     /// The form was cancelled (Escape).
-    case cancelled // LIVE: public API
+    case cancelled
     /// Focus moved to a new field.
-    case focusChanged(String) // LIVE: public API
+    case focusChanged(String)
     /// The key was not consumed by the form.
-    case unhandled // LIVE: public API
+    case unhandled
 }
 
 /// A container widget that composes form fields with layout, focus management,

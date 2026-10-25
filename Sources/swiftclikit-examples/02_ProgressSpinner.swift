@@ -50,7 +50,9 @@ private let spinnerFrames: [String] = [
 /// drives every real-time terminal UI.
 enum ProgressSpinner {
 
-    static func run() {
+    /// Runs the tier.
+    /// - Parameter rng: The generator behind the simulated sparkline data.
+    static func run(using rng: inout some RandomNumberGenerator) {
         // Disable stdout buffering so every write reaches the terminal immediately.
         // Without this, output would collect in a 4 KB buffer and appear in chunks
         // instead of smooth frames.
@@ -64,7 +66,7 @@ enum ProgressSpinner {
         waitForEnter()
         section3_multiLineDashboard()
         waitForEnter()
-        section4_sparklineAnimation()
+        section4_sparklineAnimation(using: &rng)
 
         // Always restore cursor visibility before exiting.
         print(CursorControl.show, terminator: "")
@@ -225,7 +227,8 @@ enum ProgressSpinner {
             buf.appendLine("")
 
             // Line 1: spinner + status
-            let spinnerIdx = Int(elapsed / AnimationTiming.dashboardFrameInterval)
+            let frameTicks = elapsed / AnimationTiming.dashboardFrameInterval
+            let spinnerIdx = frameTicks >= 0 && frameTicks < 1e15 ? Int(frameTicks) : 0
             let frame = spinnerFrames[spinnerIdx % spinnerFrames.count]
             let status = itemsProcessed < totalItems ? "Processing..." : "Complete!"
             let statusColor = itemsProcessed < totalItems
@@ -294,7 +297,7 @@ enum ProgressSpinner {
     /// Generates random data points over time, appending to an array and
     /// re-rendering the sparkline each frame so the user sees it fill up
     /// from left to right.
-    private static func section4_sparklineAnimation() {
+    private static func section4_sparklineAnimation(using rng: inout some RandomNumberGenerator) {
         printSectionHeader(
             number: 4,
             title: "Live Sparkline",
@@ -321,7 +324,7 @@ enum ProgressSpinner {
 
         for i in 0..<totalPoints {
             // Random walk: drift +-5, clamped to 0-100.
-            let delta = Double.random(in: -5.0...5.0)
+            let delta = Double.random(in: -5.0...5.0, using: &rng)
             value = min(max(value + delta, 0), 100)
             data.append(value)
 

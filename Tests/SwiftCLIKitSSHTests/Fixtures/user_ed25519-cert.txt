@@ -1,0 +1,17 @@
+user_ed25519-cert.pub:
+        Type: ssh-ed25519-cert-v01@openssh.com user certificate
+        Public key: ED25519-CERT SHA256:swCesmlQ6+VkD0+7QcmeVIim6ekRp8Jy/zNZoSZdwvM
+        Signing CA: ED25519 SHA256:Koex1d658ZwgAOTdAGPEITwoaiiVviJqvHWbgeIsp30 (using ssh-ed25519)
+        Key ID: "fixture-key-id"
+        Serial: 42
+        Valid: from 2026-01-01T00:00:00 to 2036-01-01T00:00:00
+        Principals: 
+                alice
+                ops
+        Critical Options: (none)
+        Extensions: 
+                permit-X11-forwarding
+                permit-agent-forwarding
+                permit-port-forwarding
+                permit-pty
+                permit-user-rc

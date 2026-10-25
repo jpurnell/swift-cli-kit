@@ -3,6 +3,12 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
+#if canImport(os)
+import os
+
+/// Logger for replay. File-scoped because a generic type cannot hold a static stored property.
+private let sessionPlayerLogger = Logger(subsystem: "com.swiftclikit", category: "SessionPlayer")
+#endif
 
 /// Replays a recorded session file through an update function,
 /// producing model snapshots at each message step.
@@ -59,18 +65,39 @@ public struct SessionPlayer<Model: Sendable, Message: Codable & Sendable>: Senda
     /// - Throws: ``SessionPlayerError/fileNotFound(_:)`` if the file does not exist,
     ///   or ``SessionPlayerError/readError(_:)`` if the file cannot be read.
     public func play() throws -> [Model] {
+        try replay().snapshots
+    }
+
+    /// Replays the session, reporting which records could not be decoded.
+    ///
+    /// The work behind ``play()``. A record that fails to decode is skipped, as
+    /// ``play()`` documents, and is also logged and listed here so a damaged
+    /// recording is visible rather than merely shorter.
+    ///
+    /// - Returns: The model snapshots, and the 1-based positions among the file's
+    ///   non-empty lines of every record that was skipped.
+    /// - Throws: The same errors as ``play()``.
+    func replay() throws -> (snapshots: [Model], skippedRecords: [Int]) {
         let data = try readFileData()
         let lines = splitLines(data)
 
-        guard !lines.isEmpty else { return [] }
+        guard !lines.isEmpty else { return ([], []) }
 
         let decoder = JSONDecoder()
         var model = initialModel
         var snapshots: [Model] = []
+        var skipped: [Int] = []
 
-        for line in lines {
+        for (offset, line) in lines.enumerated() {
             guard !line.isEmpty else { continue }
-            guard let entry = try? decoder.decode(SessionEntry<Message>.self, from: line) else { // silent: skip malformed lines during replay
+            let entry: SessionEntry<Message>
+            do {
+                entry = try decoder.decode(SessionEntry<Message>.self, from: line)
+            } catch {
+                skipped.append(offset + 1)
+                #if canImport(os)
+                sessionPlayerLogger.warning("Skipping undecodable session record \(offset + 1, privacy: .public): \(error.localizedDescription, privacy: .private)")
+                #endif
                 continue
             }
             switch entry.kind {
@@ -83,7 +110,7 @@ public struct SessionPlayer<Model: Sendable, Message: Codable & Sendable>: Senda
             }
         }
 
-        return snapshots
+        return (snapshots, skipped)
     }
 
     // MARK: - Private

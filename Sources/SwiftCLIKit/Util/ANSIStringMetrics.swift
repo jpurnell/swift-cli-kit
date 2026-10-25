@@ -9,13 +9,56 @@ public enum ANSIStringMetrics: Sendable {
 
     // MARK: - ANSI escape stripping
 
-    /// Strips ANSI escape sequences from a string.
+    /// Strips ANSI CSI escape sequences from a string.
+    ///
+    /// Removes exactly the sequences `ESC [ [0-9;]* [A-Za-z]`. Anything else that
+    /// starts with `ESC` — a private-mode CSI such as `ESC [ ? 25 l`, an
+    /// unterminated CSI, an OSC, a lone `ESC` — is left in place unchanged.
+    ///
+    /// Scans Unicode scalars directly: an escape sequence is ASCII, and scanning
+    /// scalars rather than `Character`s keeps grapheme clustering from merging
+    /// an escape byte with the text beside it.
     private static func stripANSI(_ s: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: "\u{001B}\\[[0-9;]*[A-Za-z]") else { // silent: regex is compile-time constant
-            return s
+        let scalars = Array(s.unicodeScalars)
+        var output = String.UnicodeScalarView()
+        var index = 0
+        while index < scalars.count {
+            if let end = csiEnd(in: scalars, from: index) {
+                index = end
+                continue
+            }
+            output.append(scalars[index])
+            index += 1
         }
-        let range = NSRange(s.startIndex..., in: s)
-        return regex.stringByReplacingMatches(in: s, range: range, withTemplate: "")
+        return String(output)
+    }
+
+    /// The index just past a CSI sequence that starts at `start`, or `nil` when none does.
+    ///
+    /// - Parameters:
+    ///   - scalars: The scalars being scanned.
+    ///   - start: The index to test for `ESC [`.
+    /// - Returns: The index after the final byte of `ESC [ [0-9;]* [A-Za-z]`, or `nil`.
+    private static func csiEnd(in scalars: [Unicode.Scalar], from start: Int) -> Int? {
+        guard start + 1 < scalars.count,
+              scalars[start] == "\u{001B}",
+              scalars[start + 1] == "[" else { return nil }
+        var cursor = start + 2
+        while cursor < scalars.count, isCSIParameter(scalars[cursor]) {
+            cursor += 1
+        }
+        guard cursor < scalars.count, isASCIILetter(scalars[cursor]) else { return nil }
+        return cursor + 1
+    }
+
+    /// Whether `scalar` is one of `0`–`9` or `;`.
+    private static func isCSIParameter(_ scalar: Unicode.Scalar) -> Bool {
+        ("0"..."9").contains(scalar) || scalar == ";"
+    }
+
+    /// Whether `scalar` is an ASCII letter, `A`–`Z` or `a`–`z`.
+    private static func isASCIILetter(_ scalar: Unicode.Scalar) -> Bool {
+        ("A"..."Z").contains(scalar) || ("a"..."z").contains(scalar)
     }
 
     /// Returns the string with ANSI escape sequences removed, leaving only visible text.

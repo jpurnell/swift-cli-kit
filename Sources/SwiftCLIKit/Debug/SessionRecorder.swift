@@ -3,6 +3,12 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
+#if canImport(os)
+import os
+
+/// Logger for recording. File-scoped because a generic type cannot hold a static stored property.
+private let sessionRecorderLogger = Logger(subsystem: "com.swiftclikit", category: "SessionRecorder")
+#endif
 
 /// Records session entries to a file in JSON-lines format for later replay.
 ///
@@ -92,10 +98,27 @@ public final class SessionRecorder<Message: Codable & Sendable>: Sendable {
 
     // MARK: - Private
 
-    private func writeLine(_ entry: SessionEntry<Message>) {
-        guard let data = try? encoder.encode(entry) else { return } // silent: best-effort recording; skip unencodable entries
+    /// Appends one entry as a JSON line.
+    ///
+    /// Recording is best-effort: an entry that cannot be encoded is skipped so the
+    /// session carries on, and the failure is logged rather than discarded.
+    ///
+    /// - Parameter entry: The entry to append.
+    /// - Returns: `true` when the entry was written, `false` when it could not be encoded.
+    @discardableResult
+    func writeLine(_ entry: SessionEntry<Message>) -> Bool {
+        let data: Data
+        do {
+            data = try encoder.encode(entry)
+        } catch {
+            #if canImport(os)
+            sessionRecorderLogger.warning("Skipping unencodable session entry at \(entry.timestamp, privacy: .public)s: \(error.localizedDescription, privacy: .private)")
+            #endif
+            return false
+        }
         var line = data
         line.append(contentsOf: [UInt8(ascii: "\n")])
         fileHandle.write(line)
+        return true
     }
 }

@@ -59,4 +59,23 @@ struct SnapshotTestingTests {
             .replacingOccurrences(of: "\n", with: "")
         #expect(stripped.isEmpty)
     }
+    @Test("recordSnapshot reports success and writes the golden file")
+    func recordSnapshotSucceeds() throws {
+        var buf = CellBuffer(width: 5, height: 1)
+        buf.writeText("Rec", at: (x: 0, y: 0))
+        let path = NSTemporaryDirectory() + "snapshot_test_record_\(UUID().uuidString).txt"
+
+        #expect(SnapshotTesting.recordSnapshot(buf, to: path))
+        #expect(SnapshotTesting.compare(buf, goldenFile: path) == nil)
+        try FileManager.default.removeItem(atPath: path)
+    }
+
+    @Test("recordSnapshot reports failure when the golden file cannot be written")
+    func recordSnapshotFails() {
+        let buf = CellBuffer(width: 5, height: 1)
+        let path = NSTemporaryDirectory() + "no_such_dir_\(UUID().uuidString)/golden.txt"
+
+        #expect(SnapshotTesting.recordSnapshot(buf, to: path) == false)
+        #expect(FileManager.default.fileExists(atPath: path) == false)
+    }
 }

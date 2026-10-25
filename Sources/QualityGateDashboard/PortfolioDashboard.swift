@@ -23,7 +23,15 @@ public enum PortfolioDashboard {
         try JSONDecoder().decode(Portfolio.self, from: QualityGateDashboard.firstJSONObject(in: data))
     }
 
-    private static func percent(_ rate: Double) -> String { "\(Int((rate * 100).rounded()))%" }
+    /// A rate as a whole percentage.
+    ///
+    /// - Parameter rate: The rate, `1.0` meaning 100%.
+    /// - Returns: The rounded percentage, or `"n/a"` when the rate is NaN or too
+    ///   large for a percentage an `Int` can hold.
+    private static func percent(_ rate: Double) -> String {
+        guard abs(rate) < 1e15 else { return "n/a" }
+        return "\(Int((rate * 100).rounded()))%"
+    }
 
     /// The portfolio overview scene: summary counts, a derived pulse line, and a
     /// projects table sorted by pass rate (rows selectable, id "portfolio").

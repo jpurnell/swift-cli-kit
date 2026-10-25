@@ -115,34 +115,47 @@ public enum TerminalFormatter: Sendable {
 
     // MARK: - Private
 
+    /// Compact notation (`1.2M`, `98K`) for a value too wide to print in full.
+    ///
+    /// Works on the whole part of the magnitude in integer arithmetic, so the
+    /// digits are exact. A value whose magnitude an `Int` cannot hold — NaN, an
+    /// infinity, or anything from 9e18 up — has no compact form, and is returned
+    /// as Swift writes it (`nan`, `-inf`, `1e+300`) for the caller to truncate.
+    ///
+    /// - Parameters:
+    ///   - value: The value to format.
+    ///   - maxWidth: The width the result should fit.
+    /// - Returns: The compact form, or Swift's own description of a value with none.
     private static func compactFormat(_ value: Double, maxWidth: Int) -> String {
         let absValue = abs(value)
+        guard absValue >= 0, absValue < 9e18 else { return "\(value)" }
+        let whole = Int(absValue)
         let sign = value < 0 ? "-" : ""
 
-        let suffixes: [(threshold: Double, suffix: String, divisor: Double)] = [
-            (1_000_000_000_000, "T", 1_000_000_000_000),
-            (1_000_000_000, "B", 1_000_000_000),
-            (1_000_000, "M", 1_000_000),
-            (1_000, "K", 1_000),
+        let suffixes: [(suffix: String, divisor: Int)] = [
+            ("T", 1_000_000_000_000),
+            ("B", 1_000_000_000),
+            ("M", 1_000_000),
+            ("K", 1_000),
         ]
 
-        for (threshold, suffix, divisor) in suffixes {
-            guard absValue >= threshold else { continue }
-            let scaled = absValue / divisor
+        for (suffix, divisor) in suffixes {
+            guard whole >= divisor else { continue }
+            let tenths = whole / (divisor / 10)
 
             // Try with one decimal
-            let withDecimal = "\(sign)\(Int(scaled * 10) / 10).\(Int(scaled * 10) % 10)\(suffix)"
+            let withDecimal = "\(sign)\(tenths / 10).\(tenths % 10)\(suffix)"
             if withDecimal.count <= maxWidth {
                 return withDecimal
             }
 
             // Try integer only
-            let intOnly = "\(sign)\(Int(scaled))\(suffix)"
+            let intOnly = "\(sign)\(whole / divisor)\(suffix)"
             if intOnly.count <= maxWidth {
                 return intOnly
             }
         }
 
-        return "\(sign)\(Int(absValue))"
+        return "\(sign)\(whole)"
     }
 }

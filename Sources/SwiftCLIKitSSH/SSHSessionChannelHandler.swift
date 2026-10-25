@@ -36,16 +36,26 @@ final class SSHSessionChannelHandler: ChannelInboundHandler {
     private let sessionHandler: @Sendable (SSHBackend, SSHSession) async throws -> Void
     /// The remote client's address, for the ``SSHSession`` record.
     private let remoteAddress: String
+    /// Who the connection's client was admitted as, for the ``SSHSession`` record.
+    private let clientIdentity: SSHClientIdentity?
+    /// What the connection's verifier attached, for the ``SSHSession`` record.
+    private let verification: (any Sendable)?
 
     /// Creates a session handler for a single SSH child channel.
     /// - Parameters:
     ///   - remoteAddress: The connecting client's address.
+    ///   - clientIdentity: Who the connection's client was admitted as.
+    ///   - verification: What the connection's verifier attached.
     ///   - sessionHandler: The server's per-connection app entry point.
     init(
         remoteAddress: String,
+        clientIdentity: SSHClientIdentity?,
+        verification: (any Sendable)? = nil,
         sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
     ) {
         self.remoteAddress = remoteAddress
+        self.clientIdentity = clientIdentity
+        self.verification = verification
         self.sessionHandler = sessionHandler
     }
 
@@ -103,7 +113,9 @@ final class SSHSessionChannelHandler: ChannelInboundHandler {
         let session = SSHSession(
             id: UUID().uuidString,
             remoteAddress: remoteAddress,
-            terminalSize: state.terminalSize
+            terminalSize: state.terminalSize,
+            clientIdentity: clientIdentity,
+            verification: verification
         )
         // Closing hops back onto the channel's event loop; kept as a standalone
         // @Sendable closure so the detached task captures only Sendable values.

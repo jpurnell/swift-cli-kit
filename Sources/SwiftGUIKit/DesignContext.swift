@@ -11,10 +11,10 @@ public struct DesignContext: Sendable, Equatable {
 
     /// The active appearance mode.
     public enum Appearance: Sendable, Hashable {
-        case light           // LIVE: public appearance vocabulary
+        case light
         case dark
         case highContrast
-        case system          // LIVE: public appearance vocabulary
+        case system
     }
 
     /// Layout density; the terminal is inherently ultra-compact.
@@ -31,7 +31,7 @@ public struct DesignContext: Sendable, Equatable {
         /// Unicode / nerd-font glyphs.
         case unicode
         /// Native symbol rendering (e.g. SF Symbols).
-        case native          // LIVE: public glyph-capability vocabulary
+        case native
 
         /// Orders capabilities from least (`ascii`) to most (`native`) capable.
         public static func < (lhs: GlyphCapability, rhs: GlyphCapability) -> Bool {
@@ -42,10 +42,10 @@ public struct DesignContext: Sendable, Equatable {
     /// The rendering surface a resolver is targeting.
     public enum SurfaceKind: Sendable, Hashable {
         case terminal
-        case ssh             // LIVE: public surface vocabulary
+        case ssh
         case swiftUI
-        case appKit          // LIVE: public surface vocabulary
-        case dom             // LIVE: public surface vocabulary
+        case appKit
+        case dom
     }
 
     /// The active appearance mode.

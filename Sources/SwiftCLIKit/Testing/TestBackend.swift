@@ -94,7 +94,7 @@ public final class TestBackend: TerminalBackend, Sendable {
 
     /// Called by the App runtime to submit a rendered buffer.
     /// - Parameter buf: The buffer to record.
-    internal func submitRender(_ buf: CellBuffer) { // LIVE: library API for consumers
+    internal func submitRender(_ buf: CellBuffer) {
         state.withLock { state in
             state.buffer = buf
             state.history.append(buf)

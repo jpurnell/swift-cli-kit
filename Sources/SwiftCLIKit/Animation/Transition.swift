@@ -18,7 +18,7 @@ public struct Transition: Sendable {
     /// The visual effect type for the transition.
     public enum Kind: Sendable, Equatable {
         /// Fade from transparent to opaque (enter) or opaque to transparent (exit).
-        case fade // LIVE: public API
+        case fade
         /// Slide in from the left (enter) or out to the left (exit).
         case slideLeft
         /// Slide in from the right (enter) or out to the right (exit).
@@ -28,9 +28,9 @@ public struct Transition: Sendable {
         /// Slide in from below (enter) or out downward (exit).
         case slideDown
         /// Expand from zero size to full (enter).
-        case expand // LIVE: public API
+        case expand
         /// Collapse from full size to zero (exit).
-        case collapse // LIVE: public API
+        case collapse
     }
 
     /// The current phase of the transition lifecycle.
@@ -100,6 +100,7 @@ public struct Transition: Sendable {
     ///   - now: The current time.
     ///   - dimension: The size of the container in the relevant axis (width for horizontal, height for vertical).
     /// - Returns: Offset in cells. Zero means fully positioned; negative or positive values indicate displacement.
+    ///   Zero is also returned if the displacement is not a number an `Int` can hold.
     public func offset(at now: ContinuousClock.Instant, dimension: Int) -> Int {
         let progress = animation.progress(at: now)
         let remaining: Double
@@ -127,6 +128,9 @@ public struct Transition: Sendable {
             return 0
         }
 
+        // An easing that produced NaN (or a displacement no `Int` can hold) has no
+        // position to report; treat the view as fully positioned.
+        guard abs(offsetValue) < 9e18 else { return 0 }
         return Int(offsetValue.rounded())
     }
 

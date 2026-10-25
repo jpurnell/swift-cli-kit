@@ -26,7 +26,7 @@ let package = Package(
         .executable(name: "swiftclikit-examples", targets: ["swiftclikit-examples"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio-ssh.git", from: "0.9.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssh.git", from: "0.15.0"),
         // Already in the graph through swift-nio. Named here only for the examples target,
         // whose SIGINT handler needs a flag that is safe to set from a signal handler — a
         // lock is not. No library product links it.

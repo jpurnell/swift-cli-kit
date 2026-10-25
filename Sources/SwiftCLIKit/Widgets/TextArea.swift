@@ -63,6 +63,9 @@ public struct TextArea: Sendable {
             cursorCol = safeCol + 1
             return .changed(text)
 
+        case .paste(let pasted):
+            return insertPaste(pasted)
+
         case .enter:
             guard cursorRow >= 0, cursorRow < lines.count else { return .unhandled }
             let line = lines[cursorRow]
@@ -127,6 +130,40 @@ public struct TextArea: Sendable {
         default:
             return .unhandled
         }
+    }
+
+    /// Inserts a bracketed paste at the cursor, whole.
+    ///
+    /// Terminals usually send a pasted newline as CR, and pasted files carry LF or CRLF, so all
+    /// three become line breaks. The cursor ends after the pasted text.
+    /// - Parameter pasted: The text the terminal delivered as one paste.
+    /// - Returns: `.changed` with the new text, or `.unhandled` for an empty paste.
+    private mutating func insertPaste(_ pasted: String) -> TextAreaResult {
+        guard !pasted.isEmpty, cursorRow >= 0, cursorRow < lines.count else { return .unhandled }
+        // `isNewline` matches CR, LF and the single Character CRLF alike.
+        let pastedLines = pasted
+            .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            .map(String.init)
+        guard let firstPasted = pastedLines.first, let lastPasted = pastedLines.last else { return .unhandled }
+
+        let line = lines[cursorRow]
+        let safeCol = min(cursorCol, line.count)
+        let splitIndex = line.index(line.startIndex, offsetBy: safeCol)
+        let before = String(line[..<splitIndex])
+        let after = String(line[splitIndex...])
+
+        guard pastedLines.count > 1 else {
+            let joined = before + firstPasted
+            lines[cursorRow] = joined + after
+            cursorCol = joined.count
+            return .changed(text)
+        }
+        let middle = pastedLines.dropFirst().dropLast()
+        let replacement = [before + firstPasted] + middle + [lastPasted + after]
+        lines.replaceSubrange(cursorRow...cursorRow, with: replacement)
+        cursorRow += pastedLines.count - 1
+        cursorCol = lastPasted.count
+        return .changed(text)
     }
 
     /// Renders this text area into the given frame.

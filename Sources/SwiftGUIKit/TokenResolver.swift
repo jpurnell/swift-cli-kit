@@ -9,7 +9,7 @@
 /// Resolves semantic design tokens into concrete styling for one surface.
 public protocol TokenResolver: Sendable {
     /// The active symbol set (pluggable; `DefaultSymbolSet` unless overridden).
-    var symbols: any SymbolSet { get }   // LIVE: consulted by conformers in glyph(_:in:)
+    var symbols: any SymbolSet { get }
 
     /// Resolves a color role.
     func color(_ role: ColorRole, in ctx: DesignContext) -> ResolvedColor

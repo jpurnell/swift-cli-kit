@@ -49,6 +49,11 @@ public struct SparklineGeometry: Sendable, Equatable {
         for col in 0..<columnCount {
             let value = Swift.max(data[col], 0.0)
             let ratio = Swift.min(value / maxVal, 1.0)
+            // A NaN point (or infinity over an infinite maximum) has no height: draw a gap.
+            guard (0.0...1.0).contains(ratio) else {
+                cols.append(Column(fullBlocks: 0, partialIndex: 0))
+                continue
+            }
             let scaledHeight = ratio * Double(height)
             let fullBlocks = Int(scaledHeight)
             let remainder = scaledHeight - Double(fullBlocks)

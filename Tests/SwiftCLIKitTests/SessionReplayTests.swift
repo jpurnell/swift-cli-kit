@@ -30,6 +30,14 @@ private func testUpdate(model: inout TestModel, message: TestMsg) -> [Cmd<TestMs
     return [.none]
 }
 
+/// A message whose encoding always fails, to drive the recorder's failure path.
+private struct UnencodableMsg: Codable, Sendable {
+    struct Refused: Error {}
+    init() {}
+    init(from decoder: any Decoder) throws { throw Refused() }
+    func encode(to encoder: any Encoder) throws { throw Refused() }
+}
+
 // MARK: - SessionRecorder Tests
 
 /// A path that resolved outside the per-test sandbox directory.
@@ -183,5 +191,73 @@ private struct SandboxEscape: Error, CustomStringConvertible {
         try #require(snapshots.count == 2)
         #expect(snapshots[0].count == 1)  // increment
         #expect(snapshots[1].count == 10) // set(10)
+    }
+    /// The replay reports which records it skipped, so a malformed line is visible, not just absent.
+    @Test func replayReportsSkippedRecords() throws {
+        let path = try tempPath("skipped.jsonl")
+        let recorder = SessionRecorder<TestMsg>(outputPath: path)
+        recorder.record(message: .increment, timestamp: 0.0)
+        try recorder.close()
+
+        let handle = try #require(FileHandle(forWritingAtPath: path))
+        handle.seekToEndOfFile()
+        handle.write(Data("NOT VALID JSON\n".utf8))
+        handle.write(Data("{\"also\": \"wrong\"}\n".utf8))
+        handle.closeFile()
+
+        let player = SessionPlayer<TestModel, TestMsg>(
+            inputPath: path,
+            initialModel: TestModel(),
+            update: testUpdate
+        )
+        let result = try player.replay()
+
+        #expect(result.snapshots.map(\.count) == [1])
+        #expect(result.skippedRecords == [2, 3])
+    }
+
+    /// A clean recording skips nothing.
+    @Test func replayOfCleanFileSkipsNothing() throws {
+        let path = try tempPath("clean.jsonl")
+        let recorder = SessionRecorder<TestMsg>(outputPath: path)
+        recorder.record(message: .increment, timestamp: 0.0)
+        recorder.record(key: "a", timestamp: 0.1)
+        try recorder.close()
+
+        let player = SessionPlayer<TestModel, TestMsg>(
+            inputPath: path,
+            initialModel: TestModel(),
+            update: testUpdate
+        )
+        let result = try player.replay()
+
+        #expect(result.snapshots.count == 1)
+        #expect(result.skippedRecords.isEmpty)
+    }
+
+    /// An entry that cannot be encoded is reported as not written, and nothing reaches the file.
+    @Test func unencodableEntryIsReportedAndNotWritten() throws {
+        let path = try tempPath("unencodable.jsonl")
+        let recorder = SessionRecorder<UnencodableMsg>(outputPath: path)
+
+        let written = recorder.writeLine(SessionEntry(timestamp: 0.0, kind: .message(UnencodableMsg())))
+        try recorder.close()
+
+        #expect(written == false)
+        let contents = try Data(contentsOf: URL(fileURLWithPath: path))
+        #expect(contents.isEmpty)
+    }
+
+    /// An encodable entry is reported as written.
+    @Test func encodableEntryIsReportedWritten() throws {
+        let path = try tempPath("encodable.jsonl")
+        let recorder = SessionRecorder<TestMsg>(outputPath: path)
+
+        let written = recorder.writeLine(SessionEntry(timestamp: 0.0, kind: .message(.increment)))
+        try recorder.close()
+
+        #expect(written)
+        let contents = try String(contentsOf: URL(fileURLWithPath: path), encoding: .utf8)
+        #expect(contents.hasSuffix("\n"))
     }
 }

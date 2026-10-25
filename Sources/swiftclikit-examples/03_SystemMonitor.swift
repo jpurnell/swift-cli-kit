@@ -51,8 +51,6 @@ enum SystemMonitor {
         static let diskPercent = 87
         /// Disk used display string.
         static let diskUsed = "412 GB"
-        /// Total disk display string.
-        static let diskTotal = "475 GB" // LIVE: example display constant
     }
 
     /// A simulated process entry for the process table.
@@ -74,7 +72,9 @@ enum SystemMonitor {
 
     // MARK: - Public Entry Point
 
-    static func run() {
+    /// Runs the tier.
+    /// - Parameter rng: The generator behind the simulated CPU and network data.
+    static func run(using rng: inout some RandomNumberGenerator) {
         setvbuf(stdout, nil, _IONBF, 0)
 
         printIntro()
@@ -94,10 +94,10 @@ enum SystemMonitor {
             let width = max(size.columns, Config.minimumWidth)
 
             // Generate fake data for this frame
-            let cpuValue = generateCPUValue()
+            let cpuValue = generateCPUValue(using: &rng)
             cpuHistory.append(cpuValue)
 
-            let netValue = generateNetValue()
+            let netValue = generateNetValue(using: &rng)
             netHistory.append(netValue)
 
             // Memory slowly creeps up
@@ -106,9 +106,9 @@ enum SystemMonitor {
             // Build the dashboard frame
             let dashboard = buildDashboard(
                 width: width,
-                cpuPercent: Int(cpuValue),
+                cpuPercent: wholePercent(cpuValue),
                 cpuHistory: cpuHistory,
-                memPercent: Int(memUsage),
+                memPercent: wholePercent(memUsage),
                 memBytes: memoryBytes(for: memUsage),
                 netHistory: netHistory,
                 netRate: netValue
@@ -332,21 +332,30 @@ enum SystemMonitor {
     // MARK: - Data Generation
 
     /// Generates a simulated CPU value with realistic-looking fluctuation.
-    private static func generateCPUValue() -> Double {
+    private static func generateCPUValue(using rng: inout some RandomNumberGenerator) -> Double {
         // Base load around 30-50% with occasional spikes
         let base = 40.0
-        let noise = Double.random(in: -20...25)
+        let noise = Double.random(in: -20...25, using: &rng)
         return min(max(base + noise, 5), 98)
     }
 
     /// Generates a simulated network throughput value.
-    private static func generateNetValue() -> Double {
-        Double.random(in: 0.1...8.5)
+    private static func generateNetValue(using rng: inout some RandomNumberGenerator) -> Double {
+        Double.random(in: 0.1...8.5, using: &rng)
+    }
+
+    /// A percentage truncated to a whole number for display.
+    /// - Parameter value: A percentage, nominally `0...100`.
+    /// - Returns: The truncated percentage; below 0 (or NaN) reads as 0, above 100 as 100.
+    private static func wholePercent(_ value: Double) -> Int {
+        guard value >= 0, value <= 100 else { return value > 100 ? 100 : 0 }
+        return Int(value)
     }
 
     /// Converts a memory usage percentage to a human-readable byte string.
     private static func memoryBytes(for percent: Double) -> String {
-        // Simulate 16 GB total RAM
+        // Simulate 16 GB total RAM; a percentage outside 0...100 (or NaN) shows as none used.
+        guard percent >= 0, percent <= 100 else { return Formatting.bytes(0) }
         let totalGB = 16.0
         let usedGB = totalGB * (percent / 100.0)
         let usedBytes = Int64(usedGB * 1_073_741_824)
@@ -355,6 +364,8 @@ enum SystemMonitor {
 
     /// Formats a Double as a one-decimal percentage string (e.g. "34.2").
     private static func formatPercent(_ value: Double) -> String {
+        // NaN, infinities and huge magnitudes have no one-decimal form; write them as Swift does.
+        guard abs(value) < 1e15 else { return "\(value)" }
         let rounded = (value * 10).rounded() / 10
         let intPart = Int(rounded)
         let fracPart = Int(((rounded - Double(intPart)) * 10).rounded())

@@ -68,6 +68,14 @@ public enum ANSICodes {
     public static let saveCursor = "\u{001B}[s"
     /// Restore a previously saved cursor position (DECRC via CSI u).
     public static let restoreCursor = "\u{001B}[u"
+    /// Enable bracketed paste (xterm mode 2004, CSI ?2004h).
+    ///
+    /// While enabled, the terminal wraps pasted text in `ESC [ 200 ~` … `ESC [ 201 ~`,
+    /// which ``KeyReader`` delivers as one ``Key/paste(_:)``. Write
+    /// ``disableBracketedPaste`` before restoring the terminal.
+    public static let enableBracketedPaste = "\u{001B}[?2004h"
+    /// Disable bracketed paste (xterm mode 2004, CSI ?2004l).
+    public static let disableBracketedPaste = "\u{001B}[?2004l"
 
     // MARK: - v0.2.0 additions
 

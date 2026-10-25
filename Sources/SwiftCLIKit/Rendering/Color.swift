@@ -225,27 +225,6 @@ public enum Color: Sendable, Equatable, Hashable {
         return UInt8(bestIndex)
     }
 
-    /// Finds the nearest ANSI 8/16 color to the given RGB color.
-    static func nearestANSI8(r: UInt8, g: UInt8, b: UInt8) -> ANSIColor { // LIVE: library API for consumers
-        let ri = Int(r)
-        let gi = Int(g)
-        let bi = Int(b)
-
-        var bestColor = ANSIColor.black
-        var bestDist = Int.max
-
-        for ansiColor in ANSIColor.allCases {
-            let (pr, pg, pb) = xterm256Palette[Int(ansiColor.rawValue)]
-            let dist = distanceSquared(ri, gi, bi, Int(pr), Int(pg), Int(pb))
-            if dist < bestDist {
-                bestDist = dist
-                bestColor = ansiColor
-            }
-        }
-
-        return bestColor
-    }
-
     /// Converts RGB components to a 6-digit uppercase hex string.
     private static func rgbToHex(r: UInt8, g: UInt8, b: UInt8) -> String {
         let hexChars: [Character] = Array("0123456789ABCDEF")

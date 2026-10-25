@@ -3,6 +3,9 @@
 // Created by Justin Purnell on 2026-04-10.
 
 import Foundation
+#if canImport(os)
+import os
+#endif
 
 /// Utilities for snapshot-based testing of ``CellBuffer`` contents.
 ///
@@ -15,6 +18,10 @@ import Foundation
 /// let diff = SnapshotTesting.compare(buffer, goldenFile: "expected.txt")
 /// ```
 public enum SnapshotTesting {
+    #if canImport(os)
+    private static let logger = Logger(subsystem: "com.swiftclikit", category: "SnapshotTesting")
+    #endif
+
     /// Renders a buffer to a styled string representation with style markers.
     /// - Parameter buffer: The buffer to render.
     /// - Returns: A styled string representation.
@@ -132,7 +139,7 @@ public enum SnapshotTesting {
         let path = URL(fileURLWithPath: (dir as NSString).appendingPathComponent("\(name).txt")).standardizedFileURL.path
 
         if record {
-            try? write(buffer, to: path) // silent: best-effort snapshot recording
+            recordSnapshot(buffer, to: path)
             return
         }
 
@@ -140,7 +147,7 @@ public enum SnapshotTesting {
         // SECURITY: a test helper reading its own snapshot from the directory the test named, or the temp directory
         guard fileManager.fileExists(atPath: path) else {
             // First run: record the snapshot
-            try? write(buffer, to: path) // silent: best-effort snapshot recording
+            recordSnapshot(buffer, to: path)
             return
         }
 
@@ -149,6 +156,30 @@ public enum SnapshotTesting {
             _lastSnapshotFailure = diff
         } else {
             _lastSnapshotFailure = nil
+        }
+    }
+
+    /// Writes a golden file, logging rather than discarding a failure to do so.
+    ///
+    /// Recording is best-effort — ``assertSnapshot(_:name:directory:record:file:line:)``
+    /// carries on whether or not the write succeeds — but a golden file that silently
+    /// fails to appear makes every later run re-record instead of compare, so the
+    /// failure is logged.
+    ///
+    /// - Parameters:
+    ///   - buffer: The buffer to record.
+    ///   - path: The golden file path.
+    /// - Returns: `true` when the file was written, `false` when the write failed.
+    @discardableResult
+    static func recordSnapshot(_ buffer: CellBuffer, to path: String) -> Bool {
+        do {
+            try write(buffer, to: path)
+            return true
+        } catch {
+            #if canImport(os)
+            logger.error("Could not record snapshot at \(path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            #endif
+            return false
         }
     }
 

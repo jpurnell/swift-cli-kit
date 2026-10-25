@@ -29,11 +29,11 @@ public enum CursorControl {
     /// Terminal cursor shapes (DECSCUSR).
     public enum Shape: UInt8, Sendable {
         /// Block cursor (DECSCUSR 2).
-        case block = 2 // LIVE: public API
+        case block = 2
         /// Underline cursor (DECSCUSR 4).
-        case underline = 4 // LIVE: public API
+        case underline = 4
         /// Bar/beam cursor (DECSCUSR 6).
-        case bar = 6 // LIVE: public API
+        case bar = 6
     }
 
     /// Sets the cursor shape, optionally blinking.
