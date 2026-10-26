@@ -18,7 +18,7 @@ import SwiftCLIKit
 /// whether a `shell` or `exec` was asked for. When the establishing request
 /// arrives it builds an ``SSHBackend`` whose ``SSHBackend/isInteractive`` flag
 /// reflects the negotiated PTY state, then invokes the server's session handler.
-/// Inbound channel data is forwarded to the backend's input stream; the
+/// Inbound channel data is decoded by the backend into keys; the
 /// backend's output is written back to the SSH channel.
 final class SSHSessionChannelHandler: ChannelInboundHandler {
     typealias InboundIn = SSHChannelData
@@ -68,7 +68,7 @@ final class SSHSessionChannelHandler: ChannelInboundHandler {
         context.fireUserInboundEventTriggered(event)
     }
 
-    /// Forwards inbound channel bytes to the backend's input stream.
+    /// Forwards inbound channel bytes to the backend, which decodes them into keys.
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let channelData = unwrapInboundIn(data)
         guard channelData.type == .channel, case .byteBuffer(let buffer) = channelData.data else {
@@ -77,6 +77,13 @@ final class SSHSessionChannelHandler: ChannelInboundHandler {
         let bytes = buffer.getBytes(at: buffer.readerIndex, length: buffer.readableBytes) ?? []
         guard !bytes.isEmpty else { return }
         backend?.feedInput(bytes)
+    }
+
+    /// Ends the backend's input when the channel closes, so a session waiting for a key is
+    /// released rather than left waiting.
+    func channelInactive(context: ChannelHandlerContext) {
+        backend?.finishInput()
+        context.fireChannelInactive()
     }
 
     /// Builds the backend with the negotiated interactivity/size and launches

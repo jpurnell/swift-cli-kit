@@ -13,6 +13,12 @@ public protocol TerminalBackend: Sendable {
     func disableRawMode()
     /// Read the next key from input. Blocks until available. Returns nil on EOF.
     func readKey() -> Key?
+    /// The next key from input, waiting for one without blocking a thread where the backend can.
+    ///
+    /// The default calls ``readKey()``. A backend whose input is pushed to it, such as an SSH
+    /// channel, implements this to wait for its next decoded key.
+    /// - Returns: The key, or `nil` at end of input or when the calling task is cancelled.
+    func nextKey() async -> Key?
     /// Query the current terminal dimensions.
     func terminalSize() -> TerminalSize
     /// Write a string to the terminal output.
@@ -29,4 +35,12 @@ public protocol TerminalBackend: Sendable {
     func hideCursor()
     /// Show the cursor.
     func showCursor()
+}
+
+extension TerminalBackend {
+    /// Answers from ``readKey()``, which may block the calling thread until a key arrives.
+    /// - Returns: The key, or `nil` at end of input.
+    public func nextKey() async -> Key? {
+        readKey()
+    }
 }

@@ -27,6 +27,8 @@ public final class TestBackend: TerminalBackend, Sendable {
 
     private let state: LockedState<State>
     private let _eventStream: AsyncStream<Event>
+    /// Injected keys, for ``nextKey()``.
+    private let keys = KeyQueue(capacity: Int.max)
 
     /// The width of the virtual terminal in columns.
     public let width: Int
@@ -53,11 +55,41 @@ public final class TestBackend: TerminalBackend, Sendable {
         state.withLock { $0.buffer }
     }
 
+    /// The next injected key, waiting for one if none is pending. Each injected
+    /// ``Event/key(_:)`` is delivered both here and through ``eventStream``; other events only
+    /// through the stream.
+    /// - Returns: The key, or `nil` after ``endInput()`` once every injected key has been read,
+    ///   or when the calling task is cancelled.
+    public func nextKey() async -> Key? {
+        await keys.next()
+    }
+
+    /// Whether something is waiting in ``nextKey()``: a test that injects a key once the code
+    /// under test is reading, rather than before, waits for this first.
+    ///
+    /// ```swift
+    /// let backend = TestBackend(width: 20, height: 2)
+    /// let reading = Task { await backend.nextKey() }
+    /// while !backend.isAwaitingKey { await Task.yield() }
+    /// await backend.inject(.key(.enter))
+    /// _ = await reading.value   // .enter
+    /// ```
+    public var isAwaitingKey: Bool {
+        keys.waiterCount > 0
+    }
+
+    /// Ends key input: ``nextKey()`` returns keys still pending, then `nil`. For testing what a
+    /// session does when its client goes away.
+    public func endInput() {
+        keys.end()
+    }
+
     /// Injects a single event into the event stream.
     /// - Parameter event: The event to inject.
     public func inject(_ event: Event) async {
         let cont = state.withLock { $0.eventContinuation }
         cont?.yield(event)
+        if case .key(let key) = event { keys.push(key) }
     }
 
     /// Injects a sequence of events with an optional delay between each.
@@ -68,6 +100,7 @@ public final class TestBackend: TerminalBackend, Sendable {
         for event in events {
             let cont = state.withLock { $0.eventContinuation }
             cont?.yield(event)
+            if case .key(let key) = event { keys.push(key) }
             if delay > .zero {
                 try? await Task.sleep(for: delay) // silent: best-effort delay between injected events; cancellation is acceptable
             }

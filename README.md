@@ -17,12 +17,12 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.2.1"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.3.0"),
 ]
 ```
 
 `jpurnell/swift-cli-kit` is the public repository; each release lands there as one
-clean-history commit with its tag. `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
+clean-history commit with its tag. `2.3.0` lets SSH sessions read keys (`await backend.nextKey()`); `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
 `AuthMode.verifier`; `2.1.0` is the first release whose floor is macOS 14; `2.0.0` needs macOS 15.
 
 Then depend on the products you need — `SwiftCLIKit` for the terminal layer,
@@ -79,6 +79,9 @@ including any password typed into it, could be decrypted by a future quantum com
 OpenSSH 10.1+ clients warn about this on every connection. If that matters for your
 deployment, put the app behind OpenSSH or behind TLS, both of which already negotiate hybrid
 post-quantum key exchange.
+
+A session reads what the client types with `await backend.nextKey()`, which returns `nil` when
+the client disconnects.
 
 `session.clientIdentity` says who was admitted and with what: the username and a password, a
 public key in OpenSSH form, or nothing. `SSHConfiguration.maxAuthAttempts` (default 6) closes a

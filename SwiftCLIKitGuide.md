@@ -229,6 +229,28 @@ A paste larger than `maxPasteBytes` (default 1 MiB), or not valid UTF-8, is refu
 whole as `.unknown(0x1B)`; it is never truncated. `LineEditor` and `TextField` insert
 a paste at the cursor.
 
+#### Bytes that arrive in pieces
+
+`KeyReader` pulls bytes from a `RawTerminal`. Input pushed to you instead — a socket, a
+channel — goes through `KeyDecoder`, the same decoder `KeyReader` uses, a byte at a time:
+
+```swift
+var decoder = KeyDecoder()
+for byte in received {                     // whatever arrived this time
+    if let key = decoder.feed(byte) { handle(key) }
+}
+// At end of input, a dangling ESC (or half a character) resolves:
+if let last = decoder.finish() { handle(last) }
+```
+
+A key split across deliveries decodes whole. A CSI sequence or mouse report longer than 64
+bytes is discarded through its final byte as `.unknown(0x1B)`, so input that never finishes
+a sequence can't grow the decoder.
+
+Any `TerminalBackend` also answers `await backend.nextKey()`. By default that calls
+`readKey()`; `SSHBackend` waits for the client's next key without blocking a thread, and
+`TestBackend` returns injected keys.
+
 ### Mouse Events
 
 Enable SGR extended mouse tracking and parse mouse events:
@@ -1213,6 +1235,23 @@ try await server.start { backend, session in
 }
 ```
 
+**Reading keys.** A session reads what the client types with `await backend.nextKey()`, which
+returns `nil` once the client closes the channel:
+
+```swift
+try await server.start { backend, session in
+    backend.write("Press q to quit.\r\n")
+    while let key = await backend.nextKey() {
+        if key == .character("q") { return }
+    }
+}
+```
+
+Bytes are decoded as `KeyReader` decodes a terminal's, so a key split across SSH packets
+arrives whole. Up to `SSHBackend.maxQueuedKeys` (4096) keys are held while a session isn't
+reading; more are dropped. `readKey()` returns a key that has already arrived, or `nil` without
+waiting. (Before 2.3.0, `readKey()` always returned `nil` and SSH sessions could read nothing.)
+
 Auth modes: `.none`, `.password((String, String) -> Bool)`, `.publicKey`. The mode is a
 required argument — `SSHConfiguration()` does not compile — and it is enforced: `.password`
 admits only what its closure accepts, `.publicKey` admits a client that proves it holds a
@@ -1317,7 +1356,7 @@ let package = Package(
     name: "MyApp",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.2.1"),
+        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.3.0"),
     ],
     targets: [
         .executableTarget(

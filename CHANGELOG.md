@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-25
+
+SSH sessions read keys. Until now an SSH app could only draw: `SSHBackend.readKey()` was a
+placeholder that returned `nil`, and the bytes a client typed were never read.
+
+### Added
+
+- **`TerminalBackend.nextKey() async -> Key?`**: the next key, waiting without blocking a thread
+  where the backend can. It's a protocol requirement with a default that calls `readKey()`, so
+  every existing conformer compiles unchanged.
+- **SSH key input.** `SSHBackend.nextKey()` waits for the client's next key and returns `nil` once
+  the channel closes; `readKey()` returns a key that has arrived, or `nil` without waiting.
+  - Bytes are decoded as `KeyReader` decodes a terminal's, so a key split across SSH packets
+    arrives whole.
+  - `SSHBackend.maxQueuedKeys` (4096) bounds the keys held while a session isn't reading; more
+    are dropped.
+  - `SSHBackend.finishInput()` ends input. The channel handler calls it when the channel goes
+    inactive, so a session waiting for a key is released.
+  - `SSHBackend.init` gains `maxPasteBytes:` (defaulted).
+- **`KeyDecoder`**: `KeyReader`'s decoding, fed a byte at a time (`feed(_:)`, `finish()`,
+  `isFinished`), for input pushed to you in pieces. `KeyReader` reads through it, so both paths
+  decode identically. Before `KeyReader` moved onto it, it was checked against the old reader
+  on every single byte, 60 fixtures, every truncation and every pair of them, and the paste
+  budget's exact boundary; five planted mutants were all caught.
+- **`TestBackend.nextKey()`, `endInput()` and `isAwaitingKey`**, so code that reads keys can be
+  tested headless, injecting a key once the code under test is reading.
+
+### Changed
+
+- **CSI parameters and SGR mouse reports are capped at 64 bytes.** `KeyReader` collected them
+  until a final byte with no limit. That was harmless from a local terminal, but over SSH the
+  client chooses those bytes. Past the cap, bytes are discarded through the final byte, which
+  decodes as `.unknown(0x1B)`.
+- `SSHBackend.init` no longer throws. `throws` stays in the signature and
+  `SSHBackend.Error.continuationUnavailable` stays in the API, so existing `try` and `catch`
+  compile.
+
+### Fixed
+
+- Every byte an SSH client sent was held in an `AsyncStream` nothing read, for the life of the
+  session.
+
+### Known limitations
+
+- `RealBackend` uses the default `nextKey()`, which calls the blocking `readKey()` and so holds a
+  thread while it waits for the terminal.
+- The macOS 26 SDK `SwiftUIRenderer` warnings listed under 2.2.1 remain.
+- Post-quantum key exchange moves to 2.4.0.
+
 ## [2.2.1] - 2026-10-25
 
 ### Fixed
