@@ -1252,6 +1252,22 @@ arrives whole. Up to `SSHBackend.maxQueuedKeys` (4096) keys are held while a ses
 reading; more are dropped. `readKey()` returns a key that has already arrived, or `nil` without
 waiting. (Before 2.3.0, `readKey()` always returned `nil` and SSH sessions could read nothing.)
 
+**Running a server in the background.** `start` blocks until the server closes.
+`listen` returns as soon as the server is accepting connections, with an `SSHListener` that
+reports the port it bound and stops it. Ask for port 0 to let the system choose, as tests do:
+
+```swift
+let server = SSHServer(port: 0, configuration: SSHConfiguration(authMode: .publicKey))
+let listener = try await server.listen { backend, _ in
+    backend.write("hello\r\n")
+}
+print("listening on \(listener.port)")
+// …
+try await listener.close()             // or: try await listener.waitUntilClosed()
+```
+
+`close()` is safe to call more than once. (Added in 2.4.0; before it, only `start` was public.)
+
 Auth modes: `.none`, `.password((String, String) -> Bool)`, `.publicKey`. The mode is a
 required argument — `SSHConfiguration()` does not compile — and it is enforced: `.password`
 admits only what its closure accepts, `.publicKey` admits a client that proves it holds a
@@ -1356,7 +1372,7 @@ let package = Package(
     name: "MyApp",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.3.0"),
+        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.4.0"),
     ],
     targets: [
         .executableTarget(

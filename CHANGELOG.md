@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-26
+
+### Added
+
+- **`SSHServer.listen(sessionHandler:) -> SSHListener`**: starts the server and returns at once.
+  `SSHListener.port` is the port bound (the system's choice when asked for 0); `close()` stops
+  the server and may be called more than once; `waitUntilClosed()` returns when it has closed.
+  The listener owns the server's event loops and shuts them down. `start(sessionHandler:)` is now
+  `listen` followed by `waitUntilClosed()`, with the same refusals and startup warnings.
+  Found while building swift-cli-kit-auth, whose over-the-wire tests had to reach the internal
+  `bindListener` through `@testable`. `bindListener` stays internal: its signature carries NIO
+  types, which SwiftCLIKitSSH's public API doesn't.
+- **`ANSICodes.eraseLine`** (CSI 2K): erases the line the cursor is on.
+
 ## [2.3.0] - 2026-10-25
 
 SSH sessions read keys. Until now an SSH app could only draw: `SSHBackend.readKey()` was a

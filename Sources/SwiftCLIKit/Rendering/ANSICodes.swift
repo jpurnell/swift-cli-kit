@@ -16,6 +16,9 @@ public enum ANSIColor: UInt8, Sendable, CaseIterable {
 public enum ANSICodes {
     /// Erase the entire screen (CSI 2J).
     public static let clearScreen = "\u{001B}[2J"
+    /// Erase the whole line the cursor is on, leaving the cursor where it is (CSI 2K, EL 2).
+    /// Follow it with a carriage return to redraw the line from its start.
+    public static let eraseLine = "\u{001B}[2K"
     /// Move cursor to row 1, column 1 (CSI H).
     public static let home = "\u{001B}[H"
     /// Reset all text attributes to default (SGR 0).

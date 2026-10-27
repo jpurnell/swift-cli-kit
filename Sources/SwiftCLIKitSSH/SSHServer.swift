@@ -111,7 +111,8 @@ public struct SSHServer: Sendable {
     /// Starts the SSH server, blocking until shutdown.
     ///
     /// For each incoming connection, the `sessionHandler` closure is invoked
-    /// with an ``SSHBackend`` and ``SSHSession`` for that connection.
+    /// with an ``SSHBackend`` and ``SSHSession`` for that connection. This is
+    /// ``listen(sessionHandler:)`` followed by ``SSHListener/waitUntilClosed()``.
     ///
     /// - Parameter sessionHandler: A closure that handles each SSH session.
     /// - Throws: ``SSHServer/HostKeyError`` if the host key file cannot be used, before
@@ -119,6 +120,36 @@ public struct SSHServer: Sendable {
     public func start(
         sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
     ) async throws {
+        let listener = try await listen(sessionHandler: sessionHandler)
+        try await listener.waitUntilClosed()
+    }
+
+    /// Starts the SSH server and returns at once, with a listener that reports the port it
+    /// bound and stops it.
+    ///
+    /// Use it to serve on port 0 and learn the port the system chose, or to stop a server
+    /// from elsewhere in the app:
+    ///
+    /// ```swift
+    /// import SwiftCLIKitSSH
+    ///
+    /// func serveBriefly() async throws {
+    ///     let server = SSHServer(port: 0, configuration: SSHConfiguration(authMode: .publicKey))
+    ///     let listener = try await server.listen { backend, _ in
+    ///         backend.write("hello\r\n")
+    ///     }
+    ///     print("listening on \(listener.port)")
+    ///     try await listener.close()
+    /// }
+    /// ```
+    ///
+    /// - Parameter sessionHandler: A closure that handles each SSH session.
+    /// - Returns: The running server.
+    /// - Throws: ``SSHServer/HostKeyError`` if the host key file cannot be used, before
+    ///   anything listens; otherwise any error from NIO bootstrap or binding.
+    public func listen(
+        sessionHandler: @escaping @Sendable (SSHBackend, SSHSession) async throws -> Void
+    ) async throws -> SSHListener {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
         let serverChannel: any Channel
@@ -140,13 +171,7 @@ public struct SSHServer: Sendable {
         }
         #endif
 
-        do {
-            try await serverChannel.closeFuture.get()
-        } catch {
-            try await group.shutdownGracefully()
-            throw error
-        }
-        try await group.shutdownGracefully()
+        return SSHListener(channel: serverChannel, group: group, requestedPort: port)
     }
 
     /// Binds the listening socket and returns its channel without waiting for it to close.

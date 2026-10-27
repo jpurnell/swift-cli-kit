@@ -9,6 +9,11 @@ import Foundation
 @Suite("ANSICodes v0.2.0")
 struct ANSICodesV2Tests {
 
+    @Test("eraseLine is EL 2: the whole line, cursor left where it is")
+    func eraseLine() {
+        #expect(ANSICodes.eraseLine == "\u{001B}[2K")
+    }
+
     @Test("fg256 produces 256-color foreground sequence")
     func fg256() {
         #expect(ANSICodes.fg256(196) == "\u{001B}[38;5;196m")
