@@ -84,6 +84,9 @@ public final class RawTerminal: Sendable {
         }
     }
 
+    /// The descriptor bytes are read from, for waiting on it with `poll(2)`.
+    var fileDescriptor: Int32 { fd }
+
     /// Reads a single byte from the underlying file descriptor, blocking until available.
     /// - Returns: The byte read, or `nil` on EOF or error.
     public func readByte() -> UInt8? {

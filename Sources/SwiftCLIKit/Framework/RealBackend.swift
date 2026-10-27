@@ -53,6 +53,11 @@ public final class RealBackend: TerminalBackend, Sendable {
     /// - Returns: The decoded ``Key``, or `nil` on EOF.
     public func readKey() -> Key? { reader.readKey() }
 
+    /// The next key press, waiting without blocking a cooperative thread; `nil` at end of input
+    /// or when the calling task is cancelled. See ``KeyReader/nextKey()``.
+    /// - Returns: The decoded ``Key``, or `nil`.
+    public func nextKey() async -> Key? { await reader.nextKey() }
+
     /// Queries the OS for the current terminal dimensions.
     /// - Returns: The current ``TerminalSize``.
     public func terminalSize() -> TerminalSize { TerminalSize.current() }

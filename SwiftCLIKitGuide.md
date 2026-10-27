@@ -247,9 +247,24 @@ A key split across deliveries decodes whole. A CSI sequence or mouse report long
 bytes is discarded through its final byte as `.unknown(0x1B)`, so input that never finishes
 a sequence can't grow the decoder.
 
-Any `TerminalBackend` also answers `await backend.nextKey()`. By default that calls
-`readKey()`; `SSHBackend` waits for the client's next key without blocking a thread, and
-`TestBackend` returns injected keys.
+Any `TerminalBackend` also answers `await backend.nextKey()`. `RealBackend` and `KeyReader`
+wait on their own queue rather than a cooperative thread, and return `nil` when the waiting task
+is cancelled; `SSHBackend` waits for the client's next key; `TestBackend` returns injected keys.
+A backend that implements none of this falls back to `readKey()`.
+
+Cancellation is what lets you watch for a key while doing something else, such as stopping a
+long wait on Ctrl-C:
+
+```swift
+let watcher = Task { await backend.nextKey() }
+// … the work; when it finishes first:
+watcher.cancel()          // the read returns nil, and no key is lost
+```
+
+A cancellation ends a wait, never a key: once a key's first byte has arrived, the whole key is
+read and returned. With `nextKey()`, a lone Escape arrives as `.escape` after
+`KeyReader.escapeTimeout` (50 ms); `readKey()` still waits for the byte after it. (Added in
+2.5.0; before it, `RealBackend.nextKey()` blocked a thread and ignored cancellation.)
 
 ### Mouse Events
 
@@ -1372,7 +1387,7 @@ let package = Package(
     name: "MyApp",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.4.0"),
+        .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.5.0"),
     ],
     targets: [
         .executableTarget(

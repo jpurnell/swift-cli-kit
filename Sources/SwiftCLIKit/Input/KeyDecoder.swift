@@ -110,6 +110,18 @@ public struct KeyDecoder: Sendable {
         }
     }
 
+    /// Whether the decoder is between keys, with no key begun.
+    var isBetweenKeys: Bool {
+        if case .ground = state { return true }
+        return false
+    }
+
+    /// Whether the last byte was an ESC that may or may not begin a sequence.
+    var isAfterLoneEscape: Bool {
+        if case .escape = state { return true }
+        return false
+    }
+
     /// Ends the input, resolving a key left incomplete as ``KeyReader`` resolves it at end of
     /// input: a dangling escape as ``Key/escape``, a cut-off character or mouse report as
     /// ``Key/unknown(_:)``, a cut-off paste as nothing.

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-27
+
+### Added
+
+- **`KeyReader.nextKey() async -> Key?`**, and `RealBackend.nextKey()` through it: a local
+  terminal's read that waits on the reader's own queue rather than a cooperative thread, and
+  returns `nil` when the waiting task is cancelled. It waits with `poll(2)` on the terminal and a
+  wake pipe the cancellation handler writes to. Each call has its own cancellation, so a wake
+  meant for an earlier call can't end a later one, and a cancellation ends a wait, never a key:
+  once a key's first byte has been read, the whole key is returned.
+- **`KeyReader.escapeTimeout`** (50 ms): with `nextKey()`, a lone Escape is `.escape` once this
+  passes with no following byte. `readKey()` is unchanged.
+
+### Fixed
+
+- `RealBackend.nextKey()` used the protocol default, `readKey()`, which blocks a thread in
+  `read(2)` and ignores cancellation; and after a lone Escape it waited for the next key. Found
+  while building swift-cli-kit-auth 0.4, which watches for Ctrl-C while a device sign-in waits
+  for approval: the watcher would have held the sign-in open after approval until a key was
+  pressed, and taken that key.
+
 ## [2.4.0] - 2026-10-26
 
 ### Added

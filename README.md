@@ -17,12 +17,12 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.4.0"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.5.0"),
 ]
 ```
 
 `jpurnell/swift-cli-kit` is the public repository; each release lands there as one
-clean-history commit with its tag. `2.4.0` adds `SSHServer.listen` (a server you can address and stop) and `ANSICodes.eraseLine`; `2.3.0` lets SSH sessions read keys (`await backend.nextKey()`); `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
+clean-history commit with its tag. `2.5.0` makes a local terminal's `nextKey()` cancellable and delivers a lone Escape; `2.4.0` adds `SSHServer.listen` (a server you can address and stop) and `ANSICodes.eraseLine`; `2.3.0` lets SSH sessions read keys (`await backend.nextKey()`); `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
 `AuthMode.verifier`; `2.1.0` is the first release whose floor is macOS 14; `2.0.0` needs macOS 15.
 
 Then depend on the products you need — `SwiftCLIKit` for the terminal layer,

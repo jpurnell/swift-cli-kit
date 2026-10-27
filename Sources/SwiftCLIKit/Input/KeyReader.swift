@@ -26,7 +26,13 @@ public struct KeyReader: Sendable {
     /// length; low enough that an unterminated paste cannot exhaust memory.
     public static let defaultMaxPasteBytes = 1_048_576
 
+    /// How long a lone ESC waits for a following byte before ``nextKey()`` returns it as
+    /// ``Key/escape``. Terminals send a sequence's bytes in one write; 50 ms is the common
+    /// choice (Vim's `ttimeoutlen`, tmux's lowered `escape-time`).
+    public static let escapeTimeout: Duration = .milliseconds(50)
+
     private let terminal: RawTerminal
+    private let waiter: InputWaiter
 
     /// The largest bracketed paste, in UTF-8 bytes, delivered as ``Key/paste(_:)``.
     public let maxPasteBytes: Int
@@ -41,6 +47,57 @@ public struct KeyReader: Sendable {
     public init(terminal: RawTerminal, maxPasteBytes: Int = KeyReader.defaultMaxPasteBytes) {
         self.terminal = terminal
         self.maxPasteBytes = max(0, maxPasteBytes)
+        self.waiter = InputWaiter()
+    }
+
+    /// The next key, waiting without blocking a cooperative thread.
+    ///
+    /// Unlike ``readKey()``, the wait runs on the reader's own queue and ends when the calling
+    /// task is cancelled, returning `nil`. A cancellation ends a wait, never a key: once a key's
+    /// first byte has been read, the rest is read and the key returned, since returning `nil`
+    /// would drop the bytes already read. A lone ESC is returned as ``Key/escape`` once
+    /// ``escapeTimeout`` passes with no byte after it.
+    ///
+    /// Read from one task at a time: two concurrent reads would interleave a key's bytes.
+    /// - Returns: The decoded ``Key``, or `nil` at end of input or on cancellation.
+    public func nextKey() async -> Key? {
+        let cancellation = ReadCancellation()
+        let reader = self
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                reader.waiter.queue.async {
+                    continuation.resume(returning: reader.readKey(unless: cancellation))
+                }
+            }
+        } onCancel: {
+            cancellation.cancel()
+            reader.waiter.wake()
+        }
+    }
+
+    /// Reads one key, giving up between keys once `cancellation` is set.
+    private func readKey(unless cancellation: ReadCancellation) -> Key? {
+        var decoder = KeyDecoder(maxPasteBytes: maxPasteBytes)
+        // Every byte either completes a key, advances the decoder, or ends a refused paste, and a
+        // wake that isn't this call's is drained; so this ends at end of input at the latest.
+        // Between keys a cancellation ends the read; inside a key it doesn't, and the read goes on.
+        while !(decoder.isBetweenKeys && cancellation.isCancelled) {
+            let outcome = waiter.wait(
+                for: terminal.fileDescriptor,
+                timeout: decoder.isAfterLoneEscape ? Self.escapeTimeout : nil
+            )
+            switch outcome {
+            case .timedOut:
+                return decoder.finish()
+            case .woken:
+                continue
+            case .readable:
+                guard let byte = terminal.readByte() else { return decoder.finish() }
+                if let key = decoder.feed(byte) { return key }
+                if decoder.isFinished { return nil }
+            }
+        }
+        return nil
     }
 
     /// Reads and decodes the next key press, blocking until a byte is available.
