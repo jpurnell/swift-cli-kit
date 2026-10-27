@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-10-27
+
+### Fixed
+
+- **The macOS 26 SDK's four strict-concurrency warnings in `SwiftUIRenderer`**, known since 2.2.1.
+  `view(for:onAction:)` called SwiftUI's main-actor `List` initializers from a nonisolated
+  context. The list and tree are now private views that build their `List` in `body`, which runs
+  on the main actor. `view(for:onAction:)` keeps its signature and stays callable from any
+  context, so the `@MainActor` source break once considered isn't needed.
+- **A 2.5.0 test that failed under load.** "A cancellation after a key has begun still returns
+  the whole key" waited a fixed 20 ms for the read to begin. Under a clean build's load the read
+  hadn't started, so the cancellation came between keys and ended the wait, which is the designed
+  behaviour. The test now waits until the reader has taken the bytes. 25 runs under eight
+  CPU-bound processes all passed.
+
 ## [2.5.0] - 2026-10-27
 
 ### Added

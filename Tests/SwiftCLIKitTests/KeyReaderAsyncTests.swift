@@ -29,6 +29,17 @@ struct KeyReaderAsyncTests {
         func end() {
             pipe.fileHandleForWriting.closeFile()
         }
+
+        /// Waits until the reader has taken every byte written so far, so a test knows a key has
+        /// begun rather than guessing from a delay.
+        func untilDrained() async throws {
+            for _ in 0..<400 {
+                // A zero-timeout poll reports unread bytes without taking any.
+                var unread = pollfd(fd: pipe.fileHandleForReading.fileDescriptor, events: Int16(POLLIN), revents: 0)
+                guard poll(&unread, 1, 0) > 0 else { return }
+                try await Task.sleep(for: .milliseconds(5))
+            }
+        }
     }
 
     @Test("A key already written is returned, and so is one written while waiting")
@@ -84,7 +95,9 @@ struct KeyReaderAsyncTests {
         let wire = Wire()
         wire.send([0x1B, 0x5B])
         let reading = Task { await wire.reader.nextKey() }
-        try await Task.sleep(for: .milliseconds(20))
+        // A fixed delay here failed under the load of a clean build: the read hadn't started,
+        // so the cancellation came between keys and ended the wait, as designed.
+        try await wire.untilDrained()
 
         reading.cancel()
         try await Task.sleep(for: .milliseconds(20))

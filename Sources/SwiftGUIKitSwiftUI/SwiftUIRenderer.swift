@@ -70,21 +70,16 @@ public struct SwiftUIRenderer {
 
         // MARK: Collections
         case let .list(items, selectedIndex, _, _, _, id):
-            return AnyView(List(items.indices, id: \.self,
-                                selection: Self.optionalSelectionBinding(selectedIndex, id: id, onAction: onAction)) { i in
-                Text(items[i])
-            })
+            return AnyView(SelectableList(items: items,
+                                          selection: Self.optionalSelectionBinding(selectedIndex, id: id, onAction: onAction)))
 
         case let .table(headers, _, cells, selectedRow, _, _, _, _, id):
             return AnyView(tableView(headers: headers, cells: cells, selectedRow: selectedRow,
                                      id: id, onAction: onAction))
 
         case let .tree(roots, _, selected, _, _, _, id):
-            return AnyView(List(selection: Self.treeSelectionBinding(selected, id: id, onAction: onAction)) {
-                OutlineGroup(roots, id: \.id, children: \.optionalChildren) { node in
-                    Text(node.text)
-                }
-            })
+            return AnyView(TreeList(roots: roots,
+                                    selection: Self.treeSelectionBinding(selected, id: id, onAction: onAction)))
 
         case let .menu(items, _, id, _):
             return AnyView(Menu("Menu") {
@@ -383,6 +378,34 @@ public struct SwiftUIRenderer {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A list whose rows can be selected. `List`'s initializers are main-actor isolated, so the
+/// list is built in `body`, which runs on the main actor, and ``SwiftUIRenderer/view(for:onAction:)``
+/// stays callable from any context.
+private struct SelectableList: View {
+    let items: [String]
+    let selection: Binding<Int?>
+
+    var body: some View {
+        List(items.indices, id: \.self, selection: selection) { i in
+            Text(items[i])
+        }
+    }
+}
+
+/// A tree as an outline list, built in `body` for the same reason as `SelectableList`.
+private struct TreeList: View {
+    let roots: [TreeDisplayNode]
+    let selection: Binding<String?>
+
+    var body: some View {
+        List(selection: selection) {
+            OutlineGroup(roots, id: \.id, children: \.optionalChildren) { node in
+                Text(node.text)
+            }
+        }
     }
 }
 
