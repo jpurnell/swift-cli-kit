@@ -14,7 +14,7 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftCLIKit",
-    platforms: [.macOS(.v14), .iOS(.v17), .visionOS(.v1)],
+    platforms: [.macOS(.v14), .iOS(.v17), .visionOS(.v1), .watchOS(.v10), .tvOS(.v17)],
     products: [
         .library(name: "SwiftCLIKit", targets: ["SwiftCLIKit"]),
         .library(name: "SwiftCLIKitSSH", targets: ["SwiftCLIKitSSH"]),
@@ -36,6 +36,10 @@ let package = Package(
         // SwiftCLIKitSSH can build an `NIOSSHPrivateKey` from a host key file; nothing new is
         // resolved or linked. The range is swift-nio-ssh's own.
         .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0"..<"5.0.0"),
+        // The design system's values as Foundation-only data (expected to build on Linux, untested). SwiftGUIKit's
+        // terminal resolver reads the accent from it, so one accent decision reaches every surface.
+        // Public repository, fetched over HTTPS like the rest of the fleet.
+        .package(url: "https://github.com/jpurnell/DesignTokens.git", from: "0.2.0"),
     ],
     targets: [
         .target(
@@ -43,7 +47,10 @@ let package = Package(
         ),
         .target(
             name: "SwiftGUIKit",
-            dependencies: ["SwiftCLIKit"]
+            dependencies: [
+                "SwiftCLIKit",
+                .product(name: "DesignTokens", package: "DesignTokens"),
+            ]
         ),
         .target(
             name: "SwiftGUIKitSwiftUI",
@@ -91,7 +98,10 @@ let package = Package(
         ),
         .testTarget(
             name: "SwiftGUIKitTests",
-            dependencies: ["SwiftGUIKit", "SwiftCLIKit"]
+            dependencies: [
+                "SwiftGUIKit", "SwiftCLIKit",
+                .product(name: "DesignTokens", package: "DesignTokens"),
+            ]
         ),
         .testTarget(
             name: "SwiftGUIKitSwiftUITests",

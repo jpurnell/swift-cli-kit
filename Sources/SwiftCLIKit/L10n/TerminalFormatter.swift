@@ -117,10 +117,12 @@ public enum TerminalFormatter: Sendable {
 
     /// Compact notation (`1.2M`, `98K`) for a value too wide to print in full.
     ///
-    /// Works on the whole part of the magnitude in integer arithmetic, so the
-    /// digits are exact. A value whose magnitude an `Int` cannot hold — NaN, an
-    /// infinity, or anything from 9e18 up — has no compact form, and is returned
-    /// as Swift writes it (`nan`, `-inf`, `1e+300`) for the caller to truncate.
+    /// Works on the whole part of the magnitude in 64-bit integer arithmetic, so
+    /// the digits are exact. `Int64`, not `Int`: on a 32-bit Apple Watch `Int`
+    /// holds only about 2.1e9, and converting a larger magnitude would trap. A
+    /// value an `Int64` cannot hold — NaN, an infinity, or anything from 9e18 up —
+    /// has no compact form, and is returned as Swift writes it (`nan`, `-inf`,
+    /// `1e+300`) for the caller to truncate.
     ///
     /// - Parameters:
     ///   - value: The value to format.
@@ -129,10 +131,10 @@ public enum TerminalFormatter: Sendable {
     private static func compactFormat(_ value: Double, maxWidth: Int) -> String {
         let absValue = abs(value)
         guard absValue >= 0, absValue < 9e18 else { return "\(value)" }
-        let whole = Int(absValue)
+        let whole = Int64(absValue)
         let sign = value < 0 ? "-" : ""
 
-        let suffixes: [(suffix: String, divisor: Int)] = [
+        let suffixes: [(suffix: String, divisor: Int64)] = [
             ("T", 1_000_000_000_000),
             ("B", 1_000_000_000),
             ("M", 1_000_000),

@@ -81,7 +81,7 @@ The Apple resolver resolves *by deference*:
 
 | Role | Resolves to |
 |------|-------------|
-| `ColorRole.accent` | `.accentColor` |
+| `ColorRole.accent` | `.orange` (system orange; not the person's own system accent) |
 | `ColorRole.destructive` / `.success` / `.warning` | `.red` / `.green` / `.yellow` |
 | `TypeRole.body` / `.heading` / `.title` | `.body` / `.headline` / `.largeTitle` (Dynamic Type) |
 | symbols | SF Symbols |
@@ -91,6 +91,23 @@ Because it returns the system's *own* semantic values, native output **cannot
 drift below the HIG** — the baseline is inherited, not reimplemented. The terminal
 resolver (`TerminalTokenResolver`) maps the same roles to ANSI styles and box
 characters, with an ASCII "mono floor" for the poorest terminals.
+
+### One accent for every surface
+
+The accent is a design-system decision, not each resolver's: Apple system orange, for rules,
+large type and labelled marks (not small text). It is held once in the private
+[`DesignTokens`](https://github.com/jpurnell/DesignTokens) package, which `SwiftGUIKit` depends
+on.
+
+- **Terminal:** `.accent` is `ColorToken.accent` as truecolor (`#FF9230` in a dark context,
+  `#FF8D28` in a light one), then degraded to the context's colour depth: 256-colour `209` / `208`,
+  16-colour yellow, and bold-on-default on the mono floor. High-contrast and system appearances
+  resolve as dark. `Theme.primary` no longer decides the accent; every other role still comes from
+  the `Theme`.
+- **Apple platforms:** the resolver defers to the system, so `.accent` is `Color.orange`. It does
+  not detect a custom system accent: how to tell macOS's "multicolor" setting from an explicit
+  blue is unverified.
+- A test compares the terminal accent with the `DesignTokens` value, so drift fails the build.
 
 ---
 
@@ -145,8 +162,9 @@ Every node renders on both surfaces; every interactive node dispatches a
 
 ## Requirements
 
-- Swift 6.0+
-- Terminal surface: macOS 14+ or Linux
+- Swift 6.2+ (the manifest's floor)
+- Terminal surface: macOS 14+ or Linux (`DesignTokens` is Foundation-only and expected to build on Linux, untested)
+- `SwiftGUIKit` depends on the public `DesignTokens` package (fetched over HTTPS; no credentials needed)
 - SwiftUI surface (`SwiftGUIKitSwiftUI`): any Apple platform with SwiftUI
 
 ## Installation

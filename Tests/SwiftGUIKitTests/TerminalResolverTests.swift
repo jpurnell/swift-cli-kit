@@ -13,10 +13,10 @@ struct TerminalResolverTests {
 
     // MARK: Color
 
-    @Test("accent resolves to the theme tint on a truecolor terminal")
+    @Test("accent resolves to the DesignTokens orange on a truecolor terminal")
     func accentTruecolor() {
         let r = resolver.color(.accent, in: .terminalTruecolor)
-        #expect(r.color == Theme.dark.primary)
+        #expect(r.color == .truecolor(r: 0xFF, g: 0x92, b: 0x30))
         #expect(!r.attributes.contains(.bold))
         #expect(r.monoPrefix == nil)
     }

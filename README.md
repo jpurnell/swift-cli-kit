@@ -9,7 +9,11 @@ Pure Swift terminal abstraction library -- raw mode, input parsing, line editing
 ## Requirements
 
 - **Swift 6.2+** — the manifest is `swift-tools-version: 6.2`; earlier toolchains cannot parse it
-- macOS 14+, iOS 17+ or visionOS 1+, or Linux
+- macOS 14+, iOS 17+, visionOS 1+, watchOS 10+ or tvOS 17+, or Linux
+- `SwiftGUIKit` (and the products that import it) depends on the public
+  [`DesignTokens`](https://github.com/jpurnell/DesignTokens) package (`from: "0.2.0"`, Foundation-only,
+  builds on Linux). It is fetched over HTTPS and needs no credentials; `SwiftCLIKit` and
+  `SwiftCLIKitSSH` do not use it.
 
 ## Installation
 
@@ -17,12 +21,12 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.5.0"),
+    .package(url: "https://github.com/jpurnell/swift-cli-kit.git", from: "2.6.0"),
 ]
 ```
 
 `jpurnell/swift-cli-kit` is the public repository; each release lands there as one
-clean-history commit with its tag. `2.5.1` clears the macOS 26 SDK concurrency warnings in `SwiftUIRenderer`; `2.5.0` makes a local terminal's `nextKey()` cancellable and delivers a lone Escape; `2.4.0` adds `SSHServer.listen` (a server you can address and stop) and `ANSICodes.eraseLine`; `2.3.0` lets SSH sessions read keys (`await backend.nextKey()`); `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
+clean-history commit with its tag. `2.6.0` adds watchOS 10 and tvOS 17, where `SwiftGUIKitSwiftUI` renders the whole scene with each platform's own controls, and takes the accent from the public `DesignTokens` package; `2.5.1` clears the macOS 26 SDK concurrency warnings in `SwiftUIRenderer`; `2.5.0` makes a local terminal's `nextKey()` cancellable and delivers a lone Escape; `2.4.0` adds `SSHServer.listen` (a server you can address and stop) and `ANSICodes.eraseLine`; `2.3.0` lets SSH sessions read keys (`await backend.nextKey()`); `2.2.1` makes `TestBackend.submitRender(_:)` public; `2.2.0` adds `SSHSession.clientIdentity` and
 `AuthMode.verifier`; `2.1.0` is the first release whose floor is macOS 14; `2.0.0` needs macOS 15.
 
 Then depend on the products you need — `SwiftCLIKit` for the terminal layer,

@@ -70,23 +70,50 @@ public struct SwiftUIRenderer {
 
         // MARK: Collections
         case let .list(items, selectedIndex, _, _, _, id):
+            #if os(watchOS) || os(tvOS)
+            // Rows as buttons: a tvOS row takes focus only as a control, and watchOS lists select only in edit mode.
+            return AnyView(ButtonRows(rows: items.indices.map { ButtonRow(key: "\($0)", text: items[$0], depth: 0) },
+                                      selectedKey: selectedIndex.map { "\($0)" },
+                                      spacing: resolver.spacing(.xs), indent: resolver.spacing(.m)) { key in
+                if let index = Int(key) { onAction(.selected(id: id, index)) }
+            })
+            #else
             return AnyView(SelectableList(items: items,
                                           selection: Self.optionalSelectionBinding(selectedIndex, id: id, onAction: onAction)))
+            #endif
 
         case let .table(headers, _, cells, selectedRow, _, _, _, _, id):
             return AnyView(tableView(headers: headers, cells: cells, selectedRow: selectedRow,
                                      id: id, onAction: onAction))
 
-        case let .tree(roots, _, selected, _, _, _, id):
+        case let .tree(roots, expanded, selected, _, _, _, id):
+            #if os(watchOS) || os(tvOS)
+            // No OutlineGroup here: the visible rows, indented, honouring the scene's `expanded` as the terminal does.
+            let rows = Self.visibleTreeRows(roots, expanded: expanded)
+            return AnyView(ButtonRows(rows: rows.map { ButtonRow(key: $0.id, text: $0.text, depth: $0.depth) },
+                                      selectedKey: selected,
+                                      spacing: resolver.spacing(.xs), indent: resolver.spacing(.m)) { onAction(.nodeSelected(id: id, $0)) })
+            #else
+            _ = expanded
             return AnyView(TreeList(roots: roots,
                                     selection: Self.treeSelectionBinding(selected, id: id, onAction: onAction)))
+            #endif
 
         case let .menu(items, _, id, _):
+            #if os(watchOS)
+            // A watch has no pop-up menu: the items as a column of buttons.
+            return AnyView(VStack(alignment: .leading, spacing: resolver.spacing(.xs)) {
+                ForEach(items.indices, id: \.self) { i in
+                    Button(items[i].label) { onAction(.selected(id: id, i)) }.disabled(!items[i].enabled)
+                }
+            })
+            #else
             return AnyView(Menu("Menu") {
                 ForEach(items.indices, id: \.self) { i in
                     Button(items[i].label) { onAction(.selected(id: id, i)) }.disabled(!items[i].enabled)
                 }
             })
+            #endif
 
         // MARK: Selection controls (live)
         case let .radioGroup(options, selectedIndex, id, _):
@@ -97,12 +124,12 @@ public struct SwiftUIRenderer {
         case let .tabs(titles, activeIndex, _, _, id, _):
             return AnyView(Picker("", selection: Self.selectionBinding(activeIndex, id: id, onAction: onAction)) {
                 ForEach(titles.indices, id: \.self) { Text(titles[$0]).tag($0) }
-            }.pickerStyle(.segmented).labelsHidden())
+            }.pickerStyle(Self.tabsPickerStyle).labelsHidden())
 
         case let .dropdown(label, options, selectedIndex, _, id, _):
             return AnyView(Picker(label, selection: Self.selectionBinding(selectedIndex, id: id, onAction: onAction)) {
                 ForEach(options.indices, id: \.self) { Text(options[$0]).tag($0) }
-            }.pickerStyle(.menu))
+            }.pickerStyle(Self.dropdownPickerStyle))
 
         // MARK: Text entry (live)
         case let .textField(label, placeholder, text, id, _):
@@ -111,7 +138,12 @@ public struct SwiftUIRenderer {
                 .onSubmit { onAction(.submitted(id: id)) })
 
         case let .textArea(text, _, id, _):
+            #if os(watchOS) || os(tvOS)
+            // No TextEditor: a field that grows with its text.
+            return AnyView(TextField("", text: Self.textBinding(text, id: id, onAction: onAction), axis: .vertical))
+            #else
             return AnyView(TextEditor(text: Self.textBinding(text, id: id, onAction: onAction)))
+            #endif
 
         // MARK: Checkbox
         case let .checkbox(isChecked, label, id, color):
@@ -200,6 +232,57 @@ public struct SwiftUIRenderer {
     ) -> Binding<String?> {
         Binding(get: { nodeID }, set: { if let value = $0 { onAction(.nodeSelected(id: id, value)) } })
     }
+
+    // MARK: - Tree rows
+
+    /// One visible row of a tree drawn as an indented list.
+    struct TreeRow: Equatable, Sendable {
+        /// The node's identifier.
+        let id: String
+        /// The node's text.
+        let text: String
+        /// How many levels below a root it is.
+        let depth: Int
+    }
+
+    /// The rows a tree shows, depth first: a node's children only when it is in `expanded` (and so are its
+    /// ancestors), as the terminal's tree draws them.
+    /// - Parameters:
+    ///   - roots: The top-level nodes.
+    ///   - expanded: The identifiers of the expanded nodes.
+    /// - Returns: The visible rows, in display order.
+    static func visibleTreeRows(_ roots: [TreeDisplayNode], expanded: Set<String>) -> [TreeRow] {
+        var rows: [TreeRow] = []
+        // An explicit stack rather than recursion, so a deep tree cannot overflow the call stack.
+        var pending: [(node: TreeDisplayNode, depth: Int)] = roots.reversed().map { ($0, 0) }
+        while let (node, depth) = pending.popLast() {
+            rows.append(TreeRow(id: node.id, text: node.text, depth: depth))
+            if expanded.contains(node.id) {
+                pending.append(contentsOf: node.children.reversed().map { ($0, depth + 1) })
+            }
+        }
+        return rows
+    }
+
+    // MARK: - Platform styles
+
+    /// Between table rows. On tvOS the resolver's `.m`, room for a focused row's lift; elsewhere 4 pt, as before.
+    private var tableRowSpacing: CGFloat {
+        #if os(tvOS)
+        resolver.spacing(.m)
+        #else
+        4
+        #endif
+    }
+
+    #if os(watchOS)
+    // watchOS has neither segmented nor pop-up pickers; the wheel is turned with the Digital Crown.
+    private static var tabsPickerStyle: WheelPickerStyle { .wheel }
+    private static var dropdownPickerStyle: WheelPickerStyle { .wheel }
+    #else
+    private static var tabsPickerStyle: SegmentedPickerStyle { .segmented }
+    private static var dropdownPickerStyle: MenuPickerStyle { .menu }
+    #endif
 
     // MARK: - Helpers
 
@@ -332,7 +415,7 @@ public struct SwiftUIRenderer {
                         .font(resolver.font(.caption))
                         .foregroundStyle(resolver.color(.secondaryLabel))
                     TextField("", text: Self.textBinding(field.value, id: field.id, onAction: onAction))
-                        .textFieldStyle(.roundedBorder)
+                        .modifier(FormFieldStyle())
                         .onSubmit { onAction(.submitted(id: field.id)) }
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
@@ -354,8 +437,9 @@ public struct SwiftUIRenderer {
         // A non-scrolling stack of equal-width rows — not a `List`. A List needs a
         // bounded height and collapses to nothing inside a page `ScrollView`; this
         // composes cleanly inside one. Selection is a tap gesture (not List
-        // selection), so the row still emits `.selected` and highlights.
-        VStack(spacing: 4) {
+        // selection), so the row still emits `.selected` and highlights. On tvOS each row is a button whose focus lift
+        // needs room, or it covers the next row.
+        VStack(spacing: tableRowSpacing) {
             HStack(spacing: 8) {
                 ForEach(headers.indices, id: \.self) { c in
                     Text(headers[c]).font(resolver.font(.heading))
@@ -374,13 +458,14 @@ public struct SwiftUIRenderer {
                 .padding(.vertical, 2)
                 .background(selectedRow == r ? resolver.color(.accent).opacity(0.15) : Color.clear)
                 .contentShape(Rectangle())
-                .onTapGesture { onAction(.selected(id: id, r)) }
+                .modifier(SelectsRow { onAction(.selected(id: id, r)) })
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
+#if !os(watchOS) && !os(tvOS)
 /// A list whose rows can be selected. `List`'s initializers are main-actor isolated, so the
 /// list is built in `body`, which runs on the main actor, and ``SwiftUIRenderer/view(for:onAction:)``
 /// stays callable from any context.
@@ -408,10 +493,76 @@ private struct TreeList: View {
         }
     }
 }
+#endif
 
+/// One row of ``ButtonRows``.
+struct ButtonRow: Sendable {
+    /// What the row reports when chosen.
+    let key: String
+    let text: String
+    /// Indentation level, for tree rows.
+    let depth: Int
+}
+
+/// Rows drawn as buttons, for watchOS and tvOS: a button takes focus on tvOS, where a row with a tap gesture cannot
+/// be reached, and a tap on watchOS. The selected row is marked with a checkmark.
+struct ButtonRows: View {
+    let rows: [ButtonRow]
+    let selectedKey: String?
+    /// Between rows: the resolver's `.xs`.
+    let spacing: CGFloat
+    /// Per level of a tree: the resolver's `.m`.
+    let indent: CGFloat
+    let choose: @Sendable (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            ForEach(rows.indices, id: \.self) { i in
+                let row = rows[i]
+                Button { choose(row.key) } label: {
+                    HStack {
+                        Text(row.text)
+                        Spacer(minLength: 0)
+                        if row.key == selectedKey { Image(systemName: "checkmark").accessibilityHidden(true) }
+                    }
+                    .padding(.leading, CGFloat(row.depth) * indent)
+                }
+                .accessibilityAddTraits(row.key == selectedKey ? .isSelected : [])
+            }
+        }
+    }
+}
+
+/// A form's text field style: rounded where the platform has it, the default on watchOS and tvOS. A modifier, so it
+/// is applied on the main actor while the renderer builds views from any context.
+private struct FormFieldStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(watchOS) || os(tvOS)
+        content
+        #else
+        content.textFieldStyle(.roundedBorder)
+        #endif
+    }
+}
+
+/// Makes a table row choosable: a button on tvOS, where only controls take focus; a tap elsewhere.
+private struct SelectsRow: ViewModifier {
+    let action: @Sendable () -> Void
+
+    func body(content: Content) -> some View {
+        #if os(tvOS)
+        Button(action: action) { content }.buttonStyle(.plain)
+        #else
+        content.onTapGesture(perform: action)
+        #endif
+    }
+}
+
+#if !os(watchOS) && !os(tvOS)
 /// Bridges the concrete tree form to `OutlineGroup`, which wants optional children.
 extension TreeDisplayNode {
     /// Children, or `nil` for a leaf (so `OutlineGroup` renders it without a disclosure).
     var optionalChildren: [TreeDisplayNode]? { children.isEmpty ? nil : children }
 }
+#endif
 #endif

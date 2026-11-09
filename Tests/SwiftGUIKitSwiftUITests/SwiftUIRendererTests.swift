@@ -130,6 +130,39 @@ struct SwiftUIRendererTests {
         #expect(SwiftUIRenderer.monthTitle(year: 2026, month: 7) == "July 2026")
     }
 
+    // MARK: Tree rows (watchOS and tvOS draw the tree as an indented list)
+
+    private let tree = [
+        TreeDisplayNode(text: "Music", id: "m", children: [
+            TreeDisplayNode(text: "Rock", id: "r", children: [TreeDisplayNode(text: "Punk", id: "p")]),
+            TreeDisplayNode(text: "Jazz", id: "j"),
+        ]),
+        TreeDisplayNode(text: "Talk", id: "t"),
+    ]
+
+    @Test("A collapsed tree shows only its roots, at depth 0")
+    func treeRowsCollapsed() {
+        let rows = SwiftUIRenderer.visibleTreeRows(tree, expanded: [])
+        #expect(rows == [.init(id: "m", text: "Music", depth: 0), .init(id: "t", text: "Talk", depth: 0)])
+    }
+
+    @Test("An expanded node's children follow it, one level deeper, in order")
+    func treeRowsExpanded() {
+        let rows = SwiftUIRenderer.visibleTreeRows(tree, expanded: ["m", "r"])
+        #expect(rows.map(\.id) == ["m", "r", "p", "j", "t"])
+        #expect(rows.map(\.depth) == [0, 1, 2, 1, 0])
+    }
+
+    @Test("A child's expansion shows nothing while its parent is collapsed, as on the terminal")
+    func treeRowsHiddenParent() {
+        #expect(SwiftUIRenderer.visibleTreeRows(tree, expanded: ["r"]).map(\.id) == ["m", "t"])
+    }
+
+    @Test("An empty tree has no rows")
+    func treeRowsEmpty() {
+        #expect(SwiftUIRenderer.visibleTreeRows([], expanded: ["m"]).isEmpty)
+    }
+
     // MARK: Smoke — the view builder constructs for each supported node
 
     private func ch(_ s: String) -> Node { Paragraph(text: s).node() }

@@ -42,11 +42,17 @@ public struct AppleTokenResolver: Sendable {
     // MARK: Color — defers to system semantic colors
 
     /// Resolves a color role to a system semantic `Color`.
+    ///
+    /// `.accent` is system orange (`Color.orange`), the design system's accent, by default. It is
+    /// deliberately not `Color.accentColor`, which is the person's own system accent and is usually
+    /// blue. This resolver does not try to detect a custom system accent and honour it: telling
+    /// macOS's "multicolor" setting from an explicitly chosen blue is unverified, so no such
+    /// detection is attempted. Orange is for rules, large type and labelled marks, not small text.
     public func color(_ role: ColorRole) -> Color {
         switch role {
         case .label: return .primary
         case .secondaryLabel: return .secondary
-        case .accent: return .accentColor
+        case .accent: return .orange
         case .destructive: return .red
         case .success: return .green
         case .warning: return .yellow
@@ -117,10 +123,12 @@ public struct AppleTokenResolver: Sendable {
 
     // MARK: Platform-semantic surface colors
 
+    // watchOS and tvOS have none of UIKit's background colours: the system draws the background there, so the
+    // fallbacks below apply.
     private static var systemBackground: Color {
         #if os(macOS)
         Color(nsColor: .windowBackgroundColor)
-        #elseif canImport(UIKit)
+        #elseif os(iOS) || os(visionOS)
         Color(uiColor: .systemBackground)
         #else
         Color.clear
@@ -130,7 +138,7 @@ public struct AppleTokenResolver: Sendable {
     private static var secondarySystemBackground: Color {
         #if os(macOS)
         Color(nsColor: .underPageBackgroundColor)
-        #elseif canImport(UIKit)
+        #elseif os(iOS) || os(visionOS)
         Color(uiColor: .secondarySystemBackground)
         #else
         Color.gray.opacity(0.1)
@@ -140,7 +148,7 @@ public struct AppleTokenResolver: Sendable {
     private static var systemSeparator: Color {
         #if os(macOS)
         Color(nsColor: .separatorColor)
-        #elseif canImport(UIKit)
+        #elseif os(iOS) || os(visionOS) || os(tvOS)
         Color(uiColor: .separator)
         #else
         Color.gray.opacity(0.3)

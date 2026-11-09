@@ -8,6 +8,7 @@
 //   3. glyph-by-capability — unicode vs ASCII chosen from `DesignContext`.
 
 import SwiftCLIKit
+import DesignTokens
 
 /// A `TokenResolver` that renders tokens to a terminal, driven by a `Theme` and
 /// a pluggable `SymbolSet`.
@@ -51,7 +52,7 @@ public struct TerminalTokenResolver: TokenResolver {
         case .accent:
             return mono
                 ? ResolvedColor(color: .default, attributes: .bold)
-                : ResolvedColor(color: theme.primary)
+                : ResolvedColor(color: accentColor(in: ctx))
         case .destructive:
             return statusColor(theme.error, prefix: "!", mono: mono, ctx: ctx)
         case .success:
@@ -59,6 +60,18 @@ public struct TerminalTokenResolver: TokenResolver {
         case .warning:
             return statusColor(theme.warning, prefix: warningPrefix(ctx), mono: mono, ctx: ctx)
         }
+    }
+
+    /// The accent: the shared `DesignTokens` value (Apple system orange), as truecolor and then
+    /// degraded to the context's depth by the same negotiation every other colour uses.
+    ///
+    /// Only `.light` selects the light value. `.dark`, `.highContrast` and `.system` take the dark
+    /// one: a terminal is dark by default, the package has no increased-contrast values yet, and a
+    /// terminal cannot ask the OS for its appearance. The `theme` plays no part in the accent.
+    private func accentColor(in ctx: DesignContext) -> Color {
+        let token = ColorToken.accent
+        let rgb = ctx.appearance == .light ? token.light : token.value(in: .dark)
+        return Color.truecolor(r: rgb.red, g: rgb.green, b: rgb.blue).downsampled(to: ctx.colorDepth)
     }
 
     /// Status colors keep their hue when color is available; on the mono floor

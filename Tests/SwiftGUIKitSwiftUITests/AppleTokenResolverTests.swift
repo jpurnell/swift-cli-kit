@@ -18,7 +18,12 @@ struct AppleTokenResolverTests {
     func contentColors() {
         #expect(resolver.color(.label) == .primary)
         #expect(resolver.color(.secondaryLabel) == .secondary)
-        #expect(resolver.color(.accent) == .accentColor)
+    }
+
+    @Test("accent is system orange, not the person's system accent")
+    func accentIsOrange() {
+        #expect(resolver.color(.accent) == .orange)
+        #expect(resolver.color(.accent) != .accentColor)
     }
 
     @Test("status colors defer to the standard system colors")

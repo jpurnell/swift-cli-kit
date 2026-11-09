@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-09
+
+### Added
+
+- **watchOS 10 and tvOS 17.** The package declares both, and every library target builds for them, simulator and
+  device. `SwiftGUIKitSwiftUI` renders the whole scene on a watch and a TV; where SwiftUI lacks a control there, the
+  renderer uses the platform's own (proposal `SwiftGUIKit watchOS and tvOS Design Proposal.md`):
+  - trees are an indented list of the visible rows, honouring the scene's `expanded` set as the terminal does;
+  - list, tree and (on tvOS) table rows are buttons, so the Siri Remote can focus and choose them;
+  - a menu on watchOS is a column of buttons; tabs and dropdowns on watchOS use the wheel picker;
+  - a text area is a text field that grows with its text; form fields use the platform's default style.
+  macOS, iOS and visionOS render as before.
+- A `SwiftGUIKit-AllPlatforms` shared scheme that builds and tests only the GUI kit, so its tests run on a watch or TV
+  simulator (the package-wide scheme also builds the macOS-only dashboard app).
+
+### Fixed
+
+- `TerminalFormatter.formatNumber`'s compact form (`1.2M`, `5.0T`) did not compile for a physical Apple Watch, whose
+  `Int` is 32 bits (`1_000_000_000_000` overflows it), and would have trapped converting any magnitude above about
+  2.1e9. It now works in `Int64`. Found by the first device build for watchOS.
+
+### Changed
+
+- **The accent now comes from the shared `DesignTokens` package** (public, `from: "0.2.0"` over HTTPS, a new
+  dependency of `SwiftGUIKit`; Foundation-only, so it is not expected to affect Linux; untested). One accent decision, Apple
+  system orange, now reaches the terminal and Apple resolvers.
+  - `TerminalTokenResolver`: `.accent` was `Theme.primary` (dark theme: its own tint) and is now
+    `ColorToken.accent` as truecolor: `#FF9230` for dark, `#FF8D28` for light, downsampled through the
+    existing colour negotiation (256-colour `209` dark / `208` light; 16-colour yellow; mono floor
+    unchanged, bold on default). High-contrast and system appearances resolve as dark. Status roles,
+    their glyph prefixes, and every other role are unchanged.
+  - `AppleTokenResolver`: `.accent` was `Color.accentColor` (the person's system accent, usually blue)
+    and is now `Color.orange`. Custom system accents are deliberately not detected; how to tell macOS's
+    "multicolor" from an explicit blue is unverified.
+  - **Behaviour change** for callers that relied on `.accent` following the theme or the person's
+    system accent.
+  - `DesignTokens` 0.2.0 measured the dark `success` and `destructive` values (`#30D158`, `#FF4245`),
+    so none is unmeasured now. The terminal resolver still takes those two from the `Theme`; reading
+    them from the package is not done. Still absent upstream: increased-contrast values and a dark
+    diverging ramp (not measurable from a CLI, so not invented).
+  - A test asserts the terminal accent equals the `DesignTokens` value in both appearances.
+- Proposal `project/plans/proposals/2026-11-08_SwissTierSwiftGUIKit.md`: what a Swiss tier in
+  SwiftGUIKit should hold (rule weights, grid, display register) and how it reads `DesignTokens`.
+  No code.
+
+### Added
+
+- **Terminal background detection, Phase 1 (pure code, no terminal I/O).** `TerminalRGB`,
+  `OSCColorReply.parse(_:)` (OSC 10/11 replies, 1 to 4 hex digits per channel, BEL or ST),
+  `ColorFGBG.parse(_:)`, `ContrastFit.fit(_:against:target:)` (hue-preserving WCAG fit in OKLCH),
+  `StatusCollision.collides(foreground:status:)`, and `TerminalColors.resolve(environment:queried:)`
+  with `SWIFTCLIKIT_BACKGROUND` / `SWIFTCLIKIT_FOREGROUND` overrides. Nothing is wired into
+  `DesignContext` or `TerminalTokenResolver` yet (Phase 4). See
+  `project/plans/proposals/2026-11-07_TerminalBackgroundDetection.md`.
+
 ## [2.5.1] - 2026-10-27
 
 ### Fixed
