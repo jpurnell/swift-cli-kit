@@ -112,7 +112,9 @@ public struct SwiftUIRenderer {
                 ForEach(items.indices, id: \.self) { i in
                     Button(items[i].label) { onAction(.selected(id: id, i)) }.disabled(!items[i].enabled)
                 }
-            })
+            }
+            // Explicit: on tvOS the menu's title was not read as its label (2026-11-09).
+            .accessibilityLabel("Menu"))
             #endif
 
         // MARK: Selection controls (live)
@@ -124,18 +126,22 @@ public struct SwiftUIRenderer {
         case let .tabs(titles, activeIndex, _, _, id, _):
             return AnyView(Picker("", selection: Self.selectionBinding(activeIndex, id: id, onAction: onAction)) {
                 ForEach(titles.indices, id: \.self) { Text(titles[$0]).tag($0) }
-            }.pickerStyle(Self.tabsPickerStyle).labelsHidden())
+            }.pickerStyle(Self.tabsPickerStyle).labelsHidden().modifier(WheelHeight()))
 
         case let .dropdown(label, options, selectedIndex, _, id, _):
             return AnyView(Picker(label, selection: Self.selectionBinding(selectedIndex, id: id, onAction: onAction)) {
                 ForEach(options.indices, id: \.self) { Text(options[$0]).tag($0) }
-            }.pickerStyle(Self.dropdownPickerStyle))
+            }.pickerStyle(Self.dropdownPickerStyle).modifier(WheelHeight())
+            // Explicit: on tvOS a pop-up picker's title was not read as its label (2026-11-09).
+            .accessibilityLabel(label))
 
         // MARK: Text entry (live)
         case let .textField(label, placeholder, text, id, _):
             return AnyView(TextField(placeholder.isEmpty ? label : placeholder,
                                      text: Self.textBinding(text, id: id, onAction: onAction))
-                .onSubmit { onAction(.submitted(id: id)) })
+                .onSubmit { onAction(.submitted(id: id)) }
+                // Explicit: on tvOS a field reported only its value, with no label (2026-11-09).
+                .accessibilityLabel(label.isEmpty ? placeholder : label))
 
         case let .textArea(text, _, id, _):
             #if os(watchOS) || os(tvOS)
@@ -415,6 +421,7 @@ public struct SwiftUIRenderer {
                         .font(resolver.font(.caption))
                         .foregroundStyle(resolver.color(.secondaryLabel))
                     TextField("", text: Self.textBinding(field.value, id: field.id, onAction: onAction))
+                        .accessibilityLabel(field.label)
                         .modifier(FormFieldStyle())
                         .onSubmit { onAction(.submitted(id: field.id)) }
                         .overlay(
@@ -541,6 +548,18 @@ private struct FormFieldStyle: ViewModifier {
         content
         #else
         content.textFieldStyle(.roundedBorder)
+        #endif
+    }
+}
+
+/// Gives a watchOS wheel picker room to show its rows. Inside a stack a wheel is offered no height and draws as a
+/// sliver with its value clipped (seen on a 46 mm watch simulator, 2026-11-09). Elsewhere it changes nothing.
+private struct WheelHeight: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(watchOS)
+        content.frame(height: 64)
+        #else
+        content
         #endif
     }
 }

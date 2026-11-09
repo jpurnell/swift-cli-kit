@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-11-09
+
+### Fixed
+
+- **watchOS wheel pickers** (tabs and dropdown) drew as a sliver with their value clipped: inside a stack a wheel is
+  offered no height. They are now 64 pt tall on watchOS. Seen and checked on a 46 mm watch simulator.
+- **tvOS accessibility labels:** a text field, a form field, the dropdown and the menu now carry an explicit
+  accessibility label (the field's label or placeholder, the dropdown's label, "Menu"). On tvOS the control titles were
+  not read as labels, so VoiceOver could not name them and label-driven automation could not find them. A text area
+  has no label in the scene model and still has none.
+
+### Verified
+
+- The GUI kit's 128 tests pass on a watchOS simulator (Apple Watch Series 12, watchOS 27.2), as on tvOS and macOS.
+  A scene of every node kind renders on the watch, and a tapped tree row emits `.nodeSelected`.
+
 ## [2.6.0] - 2026-11-09
 
 ### Added
