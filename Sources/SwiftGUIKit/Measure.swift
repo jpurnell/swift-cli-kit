@@ -68,7 +68,7 @@ public extension CellRenderer {
         case .textField:
             return Size(width: available.width, height: 3)   // bordered box
 
-        case let .textArea(text, _, _, _):
+        case let .textArea(text, _, _, _, _):
             let lines = text.isEmpty ? 1 : text.lines.count
             return Size(width: available.width, height: Swift.min(lines, available.height))
 

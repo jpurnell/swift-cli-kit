@@ -70,6 +70,22 @@ struct AccessibleWidgetTests {
         #expect(label.value == "75%")
     }
 
+    @Test("TextArea label names the area and reports its line count")
+    func textAreaLabel() {
+        let area = TextArea(text: "one\ntwo\nthree", label: "Notes")
+        let label = area.accessibilityLabel
+        #expect(label.role == .textField)
+        #expect(label.label == "Notes")
+        #expect(label.value == "3 lines")
+    }
+
+    @Test("An unlabelled TextArea is still named, as a text area, and one line reads singular")
+    func textAreaLabelDefault() {
+        let label = TextArea(text: "solo").accessibilityLabel
+        #expect(label.label == "Text area")
+        #expect(label.value == "1 line")
+    }
+
     @Test("Tabs label reports active title and position")
     func tabsLabel() {
         let tabs = Tabs(titles: ["Home", "Settings", "About"], activeIndex: 1)

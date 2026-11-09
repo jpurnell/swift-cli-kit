@@ -89,7 +89,8 @@ public indirect enum Node: Sendable, Equatable {
     case textField(label: String, placeholder: String, text: String, id: String, color: ColorRole)
 
     /// A multi-line text area. Rendered in its resting (unfocused) state.
-    case textArea(text: String, scrollOffset: Int, id: String, color: ColorRole)
+    /// `label` names the area for accessibility (empty if unnamed); it defaults, so existing constructions compile.
+    case textArea(text: String, scrollOffset: Int, id: String, color: ColorRole, label: String = "")
 
     /// A month calendar. The selected day resolves via `.focused` (reverse) and
     /// highlighted days via `font(.heading)` (bold) — matching the legacy defaults.

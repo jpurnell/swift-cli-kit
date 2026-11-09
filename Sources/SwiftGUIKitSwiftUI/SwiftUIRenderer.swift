@@ -143,12 +143,14 @@ public struct SwiftUIRenderer {
                 // Explicit: on tvOS a field reported only its value, with no label (2026-11-09).
                 .accessibilityLabel(label.isEmpty ? placeholder : label))
 
-        case let .textArea(text, _, id, _):
+        case let .textArea(text, _, id, _, label):
             #if os(watchOS) || os(tvOS)
             // No TextEditor: a field that grows with its text.
-            return AnyView(TextField("", text: Self.textBinding(text, id: id, onAction: onAction), axis: .vertical))
+            return AnyView(TextField(label, text: Self.textBinding(text, id: id, onAction: onAction), axis: .vertical)
+                .accessibilityLabel(label.isEmpty ? "Text area" : label))
             #else
-            return AnyView(TextEditor(text: Self.textBinding(text, id: id, onAction: onAction)))
+            return AnyView(TextEditor(text: Self.textBinding(text, id: id, onAction: onAction))
+                .accessibilityLabel(label.isEmpty ? "Text area" : label))
             #endif
 
         // MARK: Checkbox

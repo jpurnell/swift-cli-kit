@@ -73,6 +73,12 @@ struct TextAreaNodeTests {
         #expect(a.node() == .textArea(text: "one\ntwo\nthree", scrollOffset: 1, id: "", color: .label))
     }
 
+    @Test("node() carries the label, for the native surface's accessibility label")
+    func nodeLabel() {
+        let a = TextArea(text: "draft", label: "Notes")
+        #expect(a.node(id: "n") == .textArea(text: "draft", scrollOffset: 0, id: "n", color: .label, label: "Notes"))
+    }
+
     @Test("parity across content × scroll × size")
     func parity() {
         for content in ["", "single", "a\nb\nc\nd"] {

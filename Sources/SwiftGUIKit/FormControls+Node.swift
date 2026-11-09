@@ -28,7 +28,7 @@ public extension TextArea {
     /// Projects this text area into a semantic ``Node`` (resting state).
     /// - Parameter color: The text color role (default: ``ColorRole/label``).
     func node(id: String = "", color: ColorRole = .label) -> Node {
-        .textArea(text: text, scrollOffset: scrollOffset, id: id, color: color)
+        .textArea(text: text, scrollOffset: scrollOffset, id: id, color: color, label: label)
     }
 }
 

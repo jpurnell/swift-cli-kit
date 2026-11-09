@@ -28,10 +28,15 @@ public struct TextArea: Sendable {
     public var cursorCol: Int
     /// The scroll offset for vertical scrolling.
     public var scrollOffset: Int
+    /// What the area is for ("Notes"), for screen readers and native accessibility labels. Empty if unnamed.
+    public var label: String
 
     /// Creates a text area with the given initial text.
-    /// - Parameter text: Initial content (newlines create multiple lines).
-    public init(text: String = "") {
+    /// - Parameters:
+    ///   - text: Initial content (newlines create multiple lines).
+    ///   - label: What the area is for, for screen readers (default: none).
+    public init(text: String = "", label: String = "") {
+        self.label = label
         if text.isEmpty {
             self.lines = [""]
         } else {
@@ -181,5 +186,18 @@ public struct TextArea: Sendable {
             let lineText = String(lines[lineIndex].prefix(frame.rect.width))
             frame.writeText(lineText, x: 0, y: row, attributes: attrs)
         }
+    }
+}
+
+// MARK: - AccessibleWidget
+
+extension TextArea: AccessibleWidget {
+    /// An accessibility label naming the area (its ``label``, or "Text area") and giving its line count.
+    public var accessibilityLabel: AccessibilityLabel {
+        AccessibilityLabel(
+            role: .textField,
+            label: label.isEmpty ? "Text area" : label,
+            value: lines.count == 1 ? "1 line" : "\(lines.count) lines"
+        )
     }
 }

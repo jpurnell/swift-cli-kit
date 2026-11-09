@@ -122,7 +122,7 @@ public struct CellRenderer: Sendable {
         case let .textField(label, placeholder, text, _, color):
             TextField(label: label, placeholder: placeholder, text: text, style: cellStyle(for: color))
                 .render(into: &frame, focused: false)
-        case let .textArea(text, scrollOffset, _, _):
+        case let .textArea(text, scrollOffset, _, _, _):
             var area = TextArea(text: text)
             area.scrollOffset = scrollOffset
             area.render(into: &frame, focused: false)

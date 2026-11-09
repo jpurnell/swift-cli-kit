@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-09
+
+### Added
+
+- **Text areas are named for accessibility.** `TextArea` takes a `label` ("Notes") and adopts `AccessibleWidget`
+  (role `.textField`, the label or "Text area", and its line count). `Node.textArea` carries the label to the native
+  surface, where it is the control's accessibility label on every Apple platform; an unnamed area is "Text area"
+  rather than nothing, so VoiceOver never meets an anonymous editor.
+
+### Changed
+
+- `Node.textArea` has a fifth associated value, `label`, defaulting to `""`: constructing the case is unchanged, but a
+  pattern that binds its values by position (`case let .textArea(a, b, c, d)`) needs a fifth binding. No consumer in
+  the workspace does (concordance's review UI and the quality-gate dashboard render through `SwiftUIRenderer`).
+
 ## [2.6.1] - 2026-11-09
 
 ### Fixed
