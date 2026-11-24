@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-23
+
+### Changed
+- **swift-crypto minimum is now 5.1.2** (`from: "5.1.2"`; was `"1.0.0"..<"5.0.0"`, the range swift-nio-ssh itself declared). A crypto release is usually a security fix, so the owner's rule is to stay current. **A package that depends on SwiftCLIKit 2.8.0 must itself allow swift-crypto 5.1.2 or later.** swift-nio-ssh resolves at 0.15.2 under it. This release is only that change, on top of 2.7.0: no source change, no API change. The source-breaking Theme renames on `main` are not in it and ship later as 3.0.0.
+
+### Known (unchanged from 2.7.0)
+- A fresh resolution that lets DesignTokens float to a release exporting its own `Theme` makes `SwiftGUIKit` fail to compile (`'Theme' is ambiguous`), because SwiftCLIKit 2.x defines `Theme` too. 2.7.0 was built against DesignTokens 0.2.0 and has this property; 2.8.0 does not change it. The renames that remove the clash are on `main` and ship as 3.0.0.
+
 ## [2.7.0] - 2026-11-09
 
 ### Added

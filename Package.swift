@@ -34,8 +34,8 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3"),
         // Already in the graph through swift-nio-ssh, whose key types are Crypto's. Named here so
         // SwiftCLIKitSSH can build an `NIOSSHPrivateKey` from a host key file; nothing new is
-        // resolved or linked. The range is swift-nio-ssh's own.
-        .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0"..<"5.0.0"),
+        // resolved or linked. The owner's minimum for the stack is 5.1.2.
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "5.1.2"),
         // The design system's values as Foundation-only data (expected to build on Linux, untested). SwiftGUIKit's
         // terminal resolver reads the accent from it, so one accent decision reaches every surface.
         // Public repository, fetched over HTTPS like the rest of the fleet.
